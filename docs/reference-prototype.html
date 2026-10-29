@@ -1,0 +1,3739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aura Luxe | Salon & Spa Billing CRM</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js for P&L Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fdf4f5',
+              100: '#fbe8ea',
+              200: '#f7d5d8',
+              300: '#f0b3b9',
+              400: '#e58591',
+              500: '#d75a6a',
+              600: '#c0394c',
+              700: '#a12b3c',
+              800: '#862735',
+              900: '#722531',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f5f5f4;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #d6d3d1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #a8a29e;
+    }
+
+    /* Print styling for 80mm POS Thermal Receipt */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #thermal-receipt-container, #thermal-receipt-container * {
+        visibility: visible;
+      }
+      #thermal-receipt-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-stone-100 text-stone-800 font-sans h-screen flex flex-col overflow-hidden antialiased select-none">
+  <header class="bg-white border-b border-stone-200 px-4 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 text-white flex items-center justify-center font-black text-lg shadow-sm">
+        <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 id="header-shop-name" class="font-bold text-stone-900 text-sm tracking-tight leading-tight">Aura Luxe Salon & Spa</h1>
+          <span id="header-shop-branch" class="text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full border border-stone-200">Indiranagar Flagship</span>
+        </div>
+        <p class="text-[11px] text-stone-500 flex items-center gap-2">
+          <span><i class="fa-regular fa-clock text-[10px]"></i> <span id="live-clock">--:--</span></span>
+          <span>•</span>
+          <span id="header-shop-gstin" class="text-stone-400">GST: 29AABCU9603R1ZM</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Header Quick Actions -->
+    <div class="flex items-center gap-2">
+      <button onclick="openNewServiceModal()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-plus text-brand-600"></i> New Service / Price
+      </button>
+
+      <button onclick="openShopProfileModal()" class="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-store"></i> Shop Profile & Tax
+      </button>
+
+      <button onclick="openNewEmployeeModal()" class="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-user-tie"></i> + Staff
+      </button>
+
+      <button onclick="openNewClientModal()" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-xs">
+        <i class="fa-solid fa-user-plus"></i> New Client
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body Layout -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <aside class="w-16 md:w-56 bg-white border-r border-stone-200 flex flex-col justify-between shrink-0 z-10">
+      <div class="p-2 md:p-3 space-y-1">
+        <button onclick="switchTab('pos')" id="tab-btn-pos" class="nav-tab active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-brand-700 bg-brand-50 transition">
+          <i class="fa-solid fa-cash-register text-sm md:w-5 text-center"></i>
+          <span class="hidden md:inline">Billing Counter</span>
+        </button>
+
+        <button onclick="switchTab('appointments')" id="tab-btn-appointments" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-regular fa-calendar-check text-sm md:w-5 text-center"></i>
+          <span class="hidden md:inline">Queue & Chairs</span>
+        </button>
+
+        <button onclick="switchTab('clients')" id="tab-btn-clients" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-solid fa-users text-sm md:w-5 text-center"></i>
+          <span class="hidden md:inline">Client CRM & Logs</span>
+        </button>
+
+        <button onclick="switchTab('memberships')" id="tab-btn-memberships" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-solid fa-crown text-sm md:w-5 text-center text-amber-500"></i>
+          <span class="hidden md:inline">Memberships</span>
+        </button>
+
+        <button onclick="switchTab('catalog-mgmt')" id="tab-btn-catalog-mgmt" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-solid fa-list-check text-sm md:w-5 text-center"></i>
+          <span class="hidden md:inline">Service Price List</span>
+        </button>
+
+        <button onclick="switchTab('staff')" id="tab-btn-staff" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-solid fa-id-badge text-sm md:w-5 text-center"></i>
+          <span class="hidden md:inline">Staff & Documents</span>
+        </button>
+
+        <button onclick="switchTab('pnl')" id="tab-btn-pnl" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50 transition">
+          <i class="fa-solid fa-chart-pie text-sm md:w-5 text-center text-emerald-600"></i>
+          <span class="hidden md:inline">Profit & Loss Ledger</span>
+        </button>
+      </div>
+
+      <!-- Bottom Profile & Status Summary -->
+      <div class="p-3 border-t border-stone-200">
+        <div class="hidden md:block bg-stone-50 rounded-xl p-2.5 border border-stone-200 mb-2">
+          <div class="flex items-center justify-between text-[11px] text-stone-500 mb-1">
+            <span>Today's Sales</span>
+            <span class="font-bold text-emerald-600" id="sidebar-today-sales">₹28,450</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-stone-500">
+            <span>Bills Settled</span>
+            <span class="font-bold text-stone-800" id="sidebar-today-bills">14</span>
+          </div>
+        </div>
+
+        <button onclick="openShopProfileModal()" class="w-full text-left flex items-center gap-2 p-1.5 rounded-lg hover:bg-stone-100 transition text-stone-600 text-xs">
+          <i class="fa-solid fa-sliders text-stone-400 w-4 text-center"></i>
+          <span class="hidden md:inline font-medium">Shop Profile & Tax</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="flex-1 overflow-hidden relative">
+
+      <!-- ================= 1. POS BILLING VIEW ================= -->
+      <section id="view-pos" class="h-full flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Left Pane: Catalog & Item Selection -->
+        <div class="flex-1 flex flex-col p-3 md:p-4 overflow-hidden border-b lg:border-b-0 lg:border-r border-stone-200">
+          
+          <!-- Search & Filter Bar -->
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <div class="relative flex-1 min-w-[220px]">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs"></i>
+              <input 
+                type="text" 
+                id="catalog-search" 
+                oninput="filterCatalog()" 
+                placeholder="Search hair spa, balayage, facial, shampoo, pedicure..." 
+                class="w-full pl-8 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
+              />
+            </div>
+
+            <!-- Quick Add Service Button -->
+            <button onclick="openNewServiceModal()" class="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow-2xs transition">
+              <i class="fa-solid fa-circle-plus"></i> + Add Service / Price
+            </button>
+
+            <!-- Category Pills -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-medium custom-scrollbar" id="category-pills">
+              <button onclick="setCategory('all')" class="cat-pill active px-3 py-1.5 rounded-lg bg-stone-900 text-white transition shrink-0">All</button>
+              <button onclick="setCategory('Hair')" class="cat-pill px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 transition shrink-0">Hair</button>
+              <button onclick="setCategory('Skin & Spa')" class="cat-pill px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 transition shrink-0">Skin & Spa</button>
+              <button onclick="setCategory('Nails')" class="cat-pill px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 transition shrink-0">Nails</button>
+              <button onclick="setCategory('Retail')" class="cat-pill px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 transition shrink-0">Retail Products</button>
+            </div>
+          </div>
+
+          <!-- Services Grid -->
+          <div id="catalog-grid" class="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 overflow-y-auto pr-1 custom-scrollbar">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </div>
+
+        <!-- Right Pane: Active Cart & Checkout Register -->
+        <div class="w-full lg:w-96 xl:w-[420px] bg-white flex flex-col h-full shrink-0 shadow-lg border-l border-stone-200">
+          
+          <!-- Client Selector Header -->
+          <div class="p-3 border-b border-stone-200 bg-stone-50/70">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-stone-500">Client / Membership</span>
+              <button onclick="openNewClientModal()" class="text-xs text-brand-600 font-bold hover:underline flex items-center gap-1">
+                <i class="fa-solid fa-plus text-[10px]"></i> New Client
+              </button>
+            </div>
+
+            <div class="relative">
+              <select id="cart-client-select" onchange="onClientSelected(this.value)" class="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+
+            <!-- Client Quick Status & Perks Badge -->
+            <div id="client-info-pill" class="mt-2 bg-brand-50/80 border border-brand-100 rounded-xl p-2 flex items-center justify-between text-xs">
+              <div class="truncate mr-2">
+                <span id="client-membership-tag" class="font-bold text-brand-700 flex items-center gap-1">
+                  <i class="fa-solid fa-crown text-amber-500"></i> Gold Member (15% Off)
+                </span>
+                <p class="text-stone-500 text-[10px] truncate" id="client-allergy-note">Patch test: Passed</p>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="text-stone-400 block text-[9px] uppercase font-bold">Wallet Balance</span>
+                <span class="font-black text-stone-800" id="client-wallet-val">₹2,400</span>
+              </div>
+            </div>
+
+            <!-- Ad-hoc Custom Price Item Button -->
+            <div class="mt-2 pt-2 border-t border-stone-200 flex items-center justify-between">
+              <span class="text-[11px] font-bold text-stone-600">Cart Line Items</span>
+              <button onclick="openQuickCustomModal()" class="text-[11px] text-brand-600 hover:text-brand-700 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> + Add Custom Price Item
+              </button>
+            </div>
+          </div>
+
+          <!-- Cart Line Items Scroll Area -->
+          <div id="cart-items-container" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+            <!-- Dynamic Cart Items populated via JS -->
+          </div>
+
+          <!-- Billing & Payment Calculations Summary -->
+          <div class="p-3 border-t border-stone-200 bg-stone-50/50 space-y-2 text-xs">
+            
+            <!-- Discounts & Tips Row -->
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-stone-500 mb-0.5">Discount Offer</label>
+                <select id="cart-discount-select" onchange="calculateCartTotals()" class="w-full bg-white border border-stone-300 rounded-lg p-1.5 text-xs font-medium focus:ring-1 focus:ring-brand-500">
+                  <option value="none">No Discount</option>
+                  <option value="membership">Member Perk (Tier %)</option>
+                  <option value="promo10">First Visit (10% Off)</option>
+                  <option value="festive500">Flat ₹500 Coupon</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-stone-500 mb-0.5">Stylist Tip (₹)</label>
+                <input 
+                  type="number" 
+                  id="cart-tip-input" 
+                  value="0" 
+                  min="0" 
+                  step="50" 
+                  oninput="calculateCartTotals()" 
+                  class="w-full bg-white border border-stone-300 rounded-lg p-1.5 text-xs font-medium focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <!-- Cost Breakup -->
+            <div class="space-y-1 pt-1 text-stone-600 font-medium">
+              <div class="flex justify-between">
+                <span>Subtotal</span>
+                <span id="summary-subtotal" class="font-semibold text-stone-800">₹0</span>
+              </div>
+              <div class="flex justify-between text-emerald-600">
+                <span>Discount Savings</span>
+                <span id="summary-discount">-₹0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Taxes (<span id="summary-tax-rate">18%</span> GST)</span>
+                <span id="summary-tax">₹0</span>
+              </div>
+              <div class="flex justify-between text-sm font-extrabold text-stone-900 pt-1 border-t border-stone-200">
+                <span>Grand Total</span>
+                <span id="summary-grand-total" class="text-brand-700">₹0</span>
+              </div>
+            </div>
+
+            <!-- Payment Method Selectors -->
+            <div class="pt-1">
+              <span class="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Payment Mode</span>
+              <div class="grid grid-cols-4 gap-1.5" id="payment-buttons">
+                <button type="button" onclick="setPaymentMethod('upi')" class="pay-btn active py-1.5 rounded-lg border text-center font-bold text-xs bg-brand-600 text-white border-brand-600 transition">
+                  <i class="fa-solid fa-qrcode block text-[10px] mb-0.5"></i> UPI
+                </button>
+                <button type="button" onclick="setPaymentMethod('card')" class="pay-btn py-1.5 rounded-lg border text-center font-semibold text-xs bg-white text-stone-700 border-stone-300 hover:bg-stone-50 transition">
+                  <i class="fa-regular fa-credit-card block text-[10px] mb-0.5"></i> Card
+                </button>
+                <button type="button" onclick="setPaymentMethod('cash')" class="pay-btn py-1.5 rounded-lg border text-center font-semibold text-xs bg-white text-stone-700 border-stone-300 hover:bg-stone-50 transition">
+                  <i class="fa-solid fa-money-bill block text-[10px] mb-0.5"></i> Cash
+                </button>
+                <button type="button" onclick="setPaymentMethod('wallet')" class="pay-btn py-1.5 rounded-lg border text-center font-semibold text-xs bg-white text-stone-700 border-stone-300 hover:bg-stone-50 transition">
+                  <i class="fa-solid fa-wallet block text-[10px] mb-0.5"></i> Wallet
+                </button>
+              </div>
+            </div>
+
+            <!-- Checkout Action Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="clearCart()" class="w-full py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold rounded-xl text-xs transition">
+                Clear Cart
+              </button>
+              <button onclick="completeCheckout()" id="btn-complete-bill" disabled class="w-full py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
+                <i class="fa-solid fa-receipt"></i> Bill & Print
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. APPOINTMENTS & CHAIRS VIEW ================= -->
+      <section id="view-appointments" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900">Today's Chair Queue & Appointments</h2>
+            <p class="text-xs text-stone-500">Live chair status, walk-ins, and one-click transfer to billing</p>
+          </div>
+          <button onclick="openNewAppointmentModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-calendar-plus"></i> Book Appointment / Walk-in
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="appointments-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- ================= 3. CLIENT CRM & FORMULATIONS VIEW ================= -->
+      <section id="view-clients" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900">Client Profiles, Formulations & History</h2>
+            <p class="text-xs text-stone-500">Color formulas, patch test logs, allergies, and prepaid wallet records</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input 
+              type="text" 
+              id="client-search-input" 
+              oninput="renderClientsList()" 
+              placeholder="Search by name, phone or membership..." 
+              class="bg-white border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-brand-500 w-64"
+            />
+            <button onclick="openNewClientModal()" class="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
+              + New Client
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="p-3">Client</th>
+                  <th class="p-3">Membership Tier</th>
+                  <th class="p-3">Wallet</th>
+                  <th class="p-3">Color Formula / Skin Notes</th>
+                  <th class="p-3">Total Visits</th>
+                  <th class="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="clients-table-body" class="divide-y divide-stone-100">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. MEMBERSHIPS VIEW ================= -->
+      <section id="view-memberships" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900">Privilege Memberships & Subscriptions</h2>
+            <p class="text-xs text-stone-500">Configure customer loyalty tiers, automatic invoice discounts, and wallet perks</p>
+          </div>
+          <button onclick="openNewPlanModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-crown"></i> + Create Membership Plan
+          </button>
+        </div>
+
+        <!-- Membership Plans Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" id="membership-plans-grid">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Active Enrolled Members Table -->
+        <div class="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs">
+          <h3 class="font-bold text-stone-900 text-sm mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-id-card text-brand-600"></i> Active Member Directory
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="p-3">Client</th>
+                  <th class="p-3">Enrolled Tier</th>
+                  <th class="p-3">Discount Privilege</th>
+                  <th class="p-3">Prepaid Wallet</th>
+                  <th class="p-3">Action</th>
+                </tr>
+              </thead>
+              <tbody id="active-members-table" class="divide-y divide-stone-100">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. SERVICE CATALOG & PRICE MANAGEMENT ================= -->
+      <section id="view-catalog-mgmt" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900">Service Price List & Retail Inventory</h2>
+            <p class="text-xs text-stone-500">Add, edit pricing, or configure standard durations for your salon menu</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openRestockModal()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-boxes-stacked"></i> + Restock / Add Stock
+            </button>
+            <button onclick="openNewServiceModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-plus"></i> + Add New Service / Product
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="p-3">Service / Product Name</th>
+                  <th class="p-3">Category</th>
+                  <th class="p-3">Type</th>
+                  <th class="p-3">Standard Price (₹)</th>
+                  <th class="p-3">Duration / Stock</th>
+                  <th class="p-3 text-right">Quick Actions</th>
+                </tr>
+              </thead>
+              <tbody id="catalog-table-body" class="divide-y divide-stone-100">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. STAFF COMMISSIONS VIEW ================= -->
+      <section id="view-staff" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900">Staff Management, KYC Documents & Commissions</h2>
+            <p class="text-xs text-stone-500">Employee records, Aadhaar, PAN, Bank accounts, contact details and commissions</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openNewEmployeeModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-user-plus"></i> + Add New Employee
+            </button>
+          </div>
+        </div>
+
+        <!-- Subtabs: Staff Directory & Documents vs Today's Commission Ledger -->
+        <div class="flex items-center gap-2 mb-4 border-b border-stone-200 pb-2">
+          <button onclick="switchStaffSubTab('directory')" id="subtab-staff-dir" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white transition">
+            <i class="fa-solid fa-address-book mr-1 text-[11px]"></i> Employee Directory & KYC
+          </button>
+          <button onclick="switchStaffSubTab('commissions')" id="subtab-staff-comm" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-600 border border-stone-200 hover:bg-stone-50 transition">
+            <i class="fa-solid fa-money-bill-wave mr-1 text-[11px]"></i> Salary & Commission Payroll Ledger
+          </button>
+        </div>
+
+        <!-- Sub-View 1: Employee Directory & KYC Documents Cards Grid -->
+        <div id="staff-directory-view" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="staff-directory-grid">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </div>
+
+        <!-- Sub-View 2: Commission Summary & Ledger -->
+        <div id="staff-commissions-view" class="hidden space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="staff-summary-cards">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs">
+            <h3 class="font-bold text-stone-900 text-sm mb-3">Total Payroll & Commission Payout Ledger</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase font-semibold text-[10px]">
+                  <tr>
+                    <th class="p-3">Stylist / Staff</th>
+                    <th class="p-3">Base Salary</th>
+                    <th class="p-3">Gross Sales</th>
+                    <th class="p-3">Commission Earned</th>
+                    <th class="p-3 text-right">Total Est. Payout</th>
+                  </tr>
+                </thead>
+                <tbody id="staff-comm-table-body" class="divide-y divide-stone-100">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. PROFIT & LOSS LEDGER & GRAPHS VIEW ================= -->
+      <section id="view-pnl" class="h-full hidden flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+        <!-- P&L Header & Quick Actions -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <i class="fa-solid fa-scale-balanced text-emerald-600"></i> Profit & Loss Financial Statement
+            </h2>
+            <p class="text-xs text-stone-500">Live operational financial accounting: Service & Product sales vs Staff salaries, commissions, and overheads</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openNewExpenseModal()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-plus-circle"></i> + Record Business Expense
+            </button>
+            <button onclick="window.print()" class="px-3.5 py-2 bg-stone-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-print"></i> Print Statement
+            </button>
+          </div>
+        </div>
+
+        <!-- Financial KPI Metric Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
+          <!-- Total Revenue -->
+          <div class="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[11px] text-stone-500 font-semibold mb-1">
+              <span>Gross Revenue</span>
+              <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs"><i class="fa-solid fa-arrow-trend-up"></i></span>
+            </div>
+            <h3 class="text-xl font-black text-stone-900" id="pnl-kpi-revenue">₹0</h3>
+            <span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-0.5">
+              <i class="fa-solid fa-circle text-[6px]"></i> All Inflow Channels
+            </span>
+          </div>
+
+          <!-- Retail Product Sales -->
+          <div class="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[11px] text-stone-500 font-semibold mb-1">
+              <span>Retail Product Sales</span>
+              <span class="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs"><i class="fa-solid fa-bottle-droplet"></i></span>
+            </div>
+            <h3 class="text-xl font-black text-stone-900" id="pnl-kpi-products">₹0</h3>
+            <span class="text-[10px] text-stone-400 font-medium" id="pnl-kpi-product-share">0% of gross sales</span>
+          </div>
+
+          <!-- Staff Total Payroll -->
+          <div class="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[11px] text-stone-500 font-semibold mb-1">
+              <span>Staff Salary & Comm.</span>
+              <span class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs"><i class="fa-solid fa-user-tie"></i></span>
+            </div>
+            <h3 class="text-xl font-black text-stone-900" id="pnl-kpi-payroll">₹0</h3>
+            <span class="text-[10px] text-stone-400 font-medium" id="pnl-kpi-payroll-detail">Salaries + Comm.</span>
+          </div>
+
+          <!-- Operational Overheads -->
+          <div class="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[11px] text-stone-500 font-semibold mb-1">
+              <span>Operating Expenses</span>
+              <span class="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xs"><i class="fa-solid fa-receipt"></i></span>
+            </div>
+            <h3 class="text-xl font-black text-stone-900" id="pnl-kpi-expenses">₹0</h3>
+            <span class="text-[10px] text-stone-400 font-medium">Rent, Power, Supplies</span>
+          </div>
+
+          <!-- Net Profit / Loss -->
+          <div class="bg-white border-2 rounded-2xl p-3.5 shadow-2xs" id="pnl-kpi-profit-card">
+            <div class="flex items-center justify-between text-[11px] font-semibold mb-1">
+              <span id="pnl-kpi-profit-label">Net Operating Profit</span>
+              <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs" id="pnl-kpi-profit-icon">
+                <i class="fa-solid fa-sack-dollar"></i>
+              </span>
+            </div>
+            <h3 class="text-xl font-black" id="pnl-kpi-netprofit">₹0</h3>
+            <span class="text-[10px] font-bold" id="pnl-kpi-margin">0% Profit Margin</span>
+          </div>
+        </div>
+
+        <!-- Interactive Graphs Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+          <!-- Main Comparison Bar Chart -->
+          <div class="lg:col-span-7 bg-white border border-stone-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h4 class="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-chart-column text-brand-600"></i> Revenue vs. Outflow & Profit Overview
+                </h4>
+                <p class="text-[10px] text-stone-400">Breakdown of product sales, service sales, staff payroll, expenses & net income</p>
+              </div>
+              <span class="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full border border-stone-200">Current Month</span>
+            </div>
+            <div class="relative h-64 w-full">
+              <canvas id="pnl-bar-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Cost Allocation Doughnut Chart -->
+          <div class="lg:col-span-5 bg-white border border-stone-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h4 class="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-chart-pie text-emerald-600"></i> Outflow & Expense Allocation
+                </h4>
+                <p class="text-[10px] text-stone-400">Where salon revenue is disbursed</p>
+              </div>
+              <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">Cost Share</span>
+            </div>
+            <div class="relative h-64 w-full flex items-center justify-center">
+              <canvas id="pnl-doughnut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- P&L Financial Statement Ledger Breakdown -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
+          
+          <!-- Detailed Accounting Statement Table -->
+          <div class="lg:col-span-6 bg-white border border-stone-200 rounded-2xl p-4 shadow-xs">
+            <h3 class="font-bold text-stone-900 text-sm mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-file-invoice-dollar text-brand-600"></i> Income & Expense Statement Ledger
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left">
+                <tbody class="divide-y divide-stone-100">
+                  <!-- Operating Revenue Section -->
+                  <tr class="bg-stone-50 font-bold text-stone-700 text-[11px] uppercase tracking-wider">
+                    <td class="py-2 px-3" colspan="2">1. Operating Income / Revenues</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Service Billings (Hair, Spa, Skin, Nails)
+                    </td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-rev-services">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-amber-500"></span> Retail Product Sales (Shampoos, Serums, Oils)
+                    </td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-rev-products">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Membership Subscriptions & Fees
+                    </td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-rev-memberships">₹0</td>
+                  </tr>
+                  <tr class="font-bold bg-emerald-50/50 text-emerald-800">
+                    <td class="py-2 px-3">Total Gross Operational Revenue (A)</td>
+                    <td class="py-2 px-3 text-right" id="statement-total-revenue">₹0</td>
+                  </tr>
+
+                  <!-- Payroll & Compensation Section -->
+                  <tr class="bg-stone-50 font-bold text-stone-700 text-[11px] uppercase tracking-wider">
+                    <td class="py-2 px-3" colspan="2">2. Staff Salaries & Commissions</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-blue-500"></span> Staff Base Fixed Salaries (All Technicians)
+                    </td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-pay-salary">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-cyan-500"></span> Stylist Commissions Earned
+                    </td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-pay-comm">₹0</td>
+                  </tr>
+                  <tr class="font-bold bg-blue-50/50 text-blue-800">
+                    <td class="py-2 px-3">Total Staff Compensation Cost (B)</td>
+                    <td class="py-2 px-3 text-right" id="statement-total-payroll">₹0</td>
+                  </tr>
+
+                  <!-- Operating Expenses Section -->
+                  <tr class="bg-stone-50 font-bold text-stone-700 text-[11px] uppercase tracking-wider">
+                    <td class="py-2 px-3" colspan="2">3. Operating Overheads & Supplies</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600">Rent, Lease & Facility</td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-exp-rent">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600">Electricity, Water & Utilities</td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-exp-util">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600">Backbar Stock, Disposables & Supplies</td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-exp-supplies">₹0</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-stone-600">Laundry, Cleaning, Maintenance & Miscellaneous</td>
+                    <td class="py-2 px-3 font-semibold text-right text-stone-900" id="statement-exp-other">₹0</td>
+                  </tr>
+                  <tr class="font-bold bg-rose-50/50 text-rose-800">
+                    <td class="py-2 px-3">Total Operating Expenses (C)</td>
+                    <td class="py-2 px-3 text-right" id="statement-total-expenses">₹0</td>
+                  </tr>
+
+                  <!-- Net Profit Calculation -->
+                  <tr class="font-black text-sm bg-stone-900 text-white">
+                    <td class="py-3 px-3">NET OPERATING PROFIT / LOSS (A - B - C)</td>
+                    <td class="py-3 px-3 text-right font-mono" id="statement-net-profit">₹0</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Expenses Registry Table -->
+          <div class="lg:col-span-6 bg-white border border-stone-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="font-bold text-stone-900 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-rose-600"></i> Logged Operating Expenses
+                  </h3>
+                  <p class="text-[10px] text-stone-500">Rent, electricity, supplies, laundry and pantry overheads</p>
+                </div>
+                <button onclick="openNewExpenseModal()" class="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-bold rounded-lg transition">
+                  + Add
+                </button>
+              </div>
+
+              <div class="overflow-x-auto max-h-[380px] custom-scrollbar">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase font-semibold text-[10px]">
+                    <tr>
+                      <th class="p-2.5">Date / Description</th>
+                      <th class="p-2.5">Category</th>
+                      <th class="p-2.5">Amount</th>
+                      <th class="p-2.5">Paid Via</th>
+                      <th class="p-2.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="expenses-table-body" class="divide-y divide-stone-100">
+                    <!-- Populated dynamically via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Expense Ledger Footer Note -->
+            <div class="pt-3 border-t border-stone-100 mt-3 flex items-center justify-between text-[11px] text-stone-500">
+              <span>Auto-synchronized with general ledger</span>
+              <span class="font-bold text-stone-800" id="expenses-total-count">0 Recorded Overheads</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================= MODALS & POPUPS ================= -->
+
+  <!-- 10. Record Business Expense Modal -->
+  <div id="new-expense-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-receipt text-rose-600"></i> Record Operating Business Expense
+          </h3>
+          <p class="text-[11px] text-stone-500">Log salon overheads, rent, utilities, laundry, and supplies</p>
+        </div>
+        <button onclick="closeNewExpenseModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Expense Title / Vendor *</label>
+          <input type="text" id="expense-input-title" placeholder="e.g. Salon Rent Indiranagar, BESCOM Electricity, Laundry Towels" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Category *</label>
+            <select id="expense-input-category" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <option value="Rent">Rent & Facility Lease</option>
+              <option value="Utilities">Electricity & Utilities</option>
+              <option value="Supplies">Backbar Consumables & Bleach</option>
+              <option value="Housekeeping">Laundry & Towels Cleaning</option>
+              <option value="Marketing">Marketing & Social Ads</option>
+              <option value="Pantry">Client Refreshments & Tea/Coffee</option>
+              <option value="Maintenance">Salon Equipment Repair</option>
+              <option value="Miscellaneous">Miscellaneous Overhead</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Amount (₹) *</label>
+            <div class="relative">
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">₹</span>
+              <input type="number" id="expense-input-amount" placeholder="4500" min="1" step="50" class="w-full pl-7 pr-3 py-2 border border-stone-300 rounded-lg font-bold text-stone-900 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Date</label>
+            <input type="date" id="expense-input-date" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Payment Mode</label>
+            <select id="expense-input-mode" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+              <option value="UPI">UPI / GPay / PhonePe</option>
+              <option value="Cash">Cash (Petty Cash)</option>
+              <option value="Credit Card">Corporate Credit Card</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Receipt / Invoice Ref No. / Notes</label>
+          <input type="text" id="expense-input-notes" placeholder="Invoice #BES-9821 / Paid by manager" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewExpenseModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewExpense()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs">Log Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Shop Profile & Outlet Settings Modal -->
+  <div id="shop-profile-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-store text-brand-600"></i> Shop Profile & Branding Configuration
+          </h3>
+          <p class="text-[11px] text-stone-500">Configure salon branding, GST details, tax rates & thermal receipt header</p>
+        </div>
+        <button onclick="closeShopProfileModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Salon / Spa Name *</label>
+            <input type="text" id="shop-input-name" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Branch / Outlet Name</label>
+            <input type="text" id="shop-input-branch" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Tagline / Motto</label>
+          <input type="text" id="shop-input-tagline" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">GSTIN / Tax ID Number</label>
+            <input type="text" id="shop-input-gstin" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Default GST / Tax Rate (%)</label>
+            <input type="number" id="shop-input-taxrate" min="0" max="30" step="1" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Phone Number *</label>
+            <input type="text" id="shop-input-phone" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">UPI ID (For Receipt QR)</label>
+            <input type="text" id="shop-input-upi" placeholder="auraluxe@upi" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Full Physical Address</label>
+          <textarea id="shop-input-address" rows="2" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeShopProfileModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveShopProfile()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Save Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Add New Service / Product Modal -->
+  <div id="new-service-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-plus text-brand-600"></i> Add New Service or Retail Item
+          </h3>
+          <p class="text-[11px] text-stone-500">Define service title, category, and standard billing price</p>
+        </div>
+        <button onclick="closeNewServiceModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Service / Item Name *</label>
+          <input type="text" id="service-input-name" placeholder="e.g. Keratin Hair Spa, Deep Cleansing Facial" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Type *</label>
+            <select id="service-input-type" onchange="toggleServiceTypeFields(this.value)" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <option value="service">Salon/Spa Service</option>
+              <option value="product">Retail Product</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Category *</label>
+            <select id="service-input-category" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <option value="Hair">Hair</option>
+              <option value="Skin & Spa">Skin & Spa</option>
+              <option value="Nails">Nails</option>
+              <option value="Retail">Retail</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Standard Price (₹) *</label>
+            <div class="relative">
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">₹</span>
+              <input type="number" id="service-input-price" placeholder="1500" min="0" step="50" class="w-full pl-7 pr-3 py-2 border border-stone-300 rounded-lg font-bold text-stone-900 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+          <div id="service-field-duration">
+            <label class="block text-stone-600 font-semibold mb-1">Duration</label>
+            <input type="text" id="service-input-duration" placeholder="e.g. 45 min, 90 min" value="45 min" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div id="service-field-stock" class="hidden">
+            <label class="block text-stone-600 font-semibold mb-1">Initial Stock Qty</label>
+            <input type="number" id="service-input-stock" placeholder="10" min="0" value="10" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Icon Style</label>
+          <select id="service-input-icon" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <option value="fa-scissors">Scissors (Hair Cut & Styling)</option>
+            <option value="fa-wand-magic-sparkles">Magic Sparkles (Treatments / Chemical)</option>
+            <option value="fa-spa">Spa (Facials & Skin)</option>
+            <option value="fa-hands">Hands (Massage & Therapy)</option>
+            <option value="fa-hand-sparkles">Hand Sparkles (Manicure / Pedicure)</option>
+            <option value="fa-soap">Soap (Wash & Conditioning)</option>
+            <option value="fa-bottle-droplet">Bottle Droplet (Serums & Shampoos)</option>
+          </select>
+        </div>
+
+        <label class="flex items-center gap-2 pt-1 cursor-pointer select-none text-stone-700">
+          <input type="checkbox" id="service-check-addtocart" checked class="rounded text-brand-600 focus:ring-brand-500" />
+          <span class="font-medium">Add directly to active bill after saving</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewServiceModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewService()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Save Service</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Quick Custom Price Item Modal (Ad-hoc Charges) -->
+  <div id="quick-custom-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-receipt text-brand-600"></i> Quick Custom Charge
+          </h3>
+          <p class="text-[11px] text-stone-500">Add an ad-hoc custom service & price to this invoice</p>
+        </div>
+        <button onclick="closeQuickCustomModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Service Description *</label>
+          <input type="text" id="quick-custom-name" placeholder="e.g. Extra Toner Bowl, Fringe Trim, Scalp Mask" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Custom Price (₹) *</label>
+          <div class="relative">
+            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">₹</span>
+            <input type="number" id="quick-custom-price" placeholder="650" min="0" step="50" class="w-full pl-7 pr-3 py-2 border border-stone-300 rounded-lg font-bold text-stone-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Assigned Stylist</label>
+          <select id="quick-custom-staff" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <!-- Dynamically loaded -->
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeQuickCustomModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="addQuickCustomCharge()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Add to Cart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. New Client Modal -->
+  <div id="new-client-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-user-plus text-brand-600"></i> Register New Client
+        </h3>
+        <button onclick="closeNewClientModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Full Name *</label>
+            <input type="text" id="client-input-name" placeholder="Pooja Sharma" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Phone Number *</label>
+            <input type="tel" id="client-input-phone" placeholder="+91 98765 43210" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Membership Plan</label>
+            <select id="client-input-tier" class="w-full border border-stone-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Initial Wallet (₹)</label>
+            <input type="number" id="client-input-wallet" value="0" min="0" step="500" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Color Formulation / Skin Notes</label>
+          <textarea id="client-input-formula" placeholder="e.g. Inoa 5.1 + 20 Vol, sensitive scalp, likes green tea" rows="2" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewClientModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewClient()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Save & Select</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. New Membership Plan Modal -->
+  <div id="new-plan-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-crown text-amber-500"></i> Create Membership Plan
+        </h3>
+        <button onclick="closeNewPlanModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Plan Name *</label>
+          <input type="text" id="plan-input-name" placeholder="Diamond Royale VIP" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Membership Price (₹) *</label>
+            <input type="number" id="plan-input-price" placeholder="4999" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Discount Privilege (%)</label>
+            <input type="number" id="plan-input-discount" placeholder="20" min="0" max="100" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Bonus Wallet Credit (₹)</label>
+            <input type="number" id="plan-input-bonus" placeholder="1000" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Validity (Months)</label>
+            <input type="number" id="plan-input-validity" value="12" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Perks Description</label>
+          <input type="text" id="plan-input-perks" placeholder="Free Head Massage on Birthday, Priority Booking" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewPlanModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewMembershipPlan()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Create Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. New Appointment Modal -->
+  <div id="new-appointment-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-calendar-plus text-brand-600"></i> New Chair Booking / Walk-in
+        </h3>
+        <button onclick="closeNewAppointmentModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Client</label>
+          <select id="apt-input-client" class="w-full border border-stone-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Stylist / Specialist</label>
+            <select id="apt-input-staff" class="w-full border border-stone-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <!-- Populated via JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Service</label>
+            <select id="apt-input-service" class="w-full border border-stone-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <!-- Populated via JS -->
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Time Slot</label>
+            <input type="text" id="apt-input-time" value="Now (Walk-in)" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Station / Chair</label>
+            <input type="text" id="apt-input-chair" value="Chair 3 (Hair Station)" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewAppointmentModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewAppointment()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Book Chair</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Add New Employee Modal -->
+  <div id="new-employee-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-user-plus text-brand-600"></i> Add New Employee / Staff Details
+          </h3>
+          <p class="text-[11px] text-stone-500">Contact, WhatsApp, Aadhaar, PAN, Bank account, and address</p>
+        </div>
+        <button onclick="closeNewEmployeeModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs">
+        <!-- Basic Profile -->
+        <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2.5">
+          <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-id-badge text-brand-600"></i> Basic Identity & Role
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Full Name *</label>
+              <input type="text" id="emp-input-name" placeholder="e.g. Rahul Sharma" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Role / Designation *</label>
+              <select id="emp-input-role" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <option value="Master Stylist">Master Stylist</option>
+                <option value="Senior Colorist">Senior Colorist</option>
+                <option value="Spa Therapist">Spa Therapist</option>
+                <option value="Nail Artist">Nail Artist</option>
+                <option value="Salon Assistant">Salon Assistant</option>
+                <option value="Front Desk Receptionist">Front Desk Receptionist</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Phone Number (Calling) *</label>
+              <input type="tel" id="emp-input-phone" placeholder="+91 98765 43210" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-stone-600 font-semibold">WhatsApp Number *</label>
+                <button type="button" onclick="copyPhoneToWhatsapp()" class="text-[10px] text-brand-600 hover:underline">Same as phone</button>
+              </div>
+              <input type="tel" id="emp-input-whatsapp" placeholder="+91 98765 43210" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents & KYC (Aadhaar & PAN) -->
+        <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2.5">
+          <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-file-shield text-brand-600"></i> Government ID & KYC Documents
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Aadhaar Card Number *</label>
+              <input type="text" id="emp-input-aadhaar" placeholder="XXXX-XXXX-XXXX" maxlength="14" oninput="formatAadhaarInput(this)" class="w-full border border-stone-300 rounded-lg p-2 font-mono text-stone-900 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+              <p class="text-[10px] text-stone-400 mt-0.5">12-digit UIDAI identification</p>
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">PAN Card Number *</label>
+              <input type="text" id="emp-input-pan" placeholder="ABCDE1234F" maxlength="10" class="w-full uppercase border border-stone-300 rounded-lg p-2 font-mono text-stone-900 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+              <p class="text-[10px] text-stone-400 mt-0.5">10-character alphanumeric PAN</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Present Residential Address *</label>
+            <textarea id="emp-input-address" rows="2" placeholder="House/Flat No, Street, Landmark, Area, City, Pin Code" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Bank Details & Payout -->
+        <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2.5">
+          <span class="text-[10px] uppercase font-bold text-stone-500 tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-building-columns text-brand-600"></i> Bank Account & Payout Details
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Bank Name</label>
+              <input type="text" id="emp-input-bank" placeholder="e.g. HDFC Bank, SBI" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Account Number</label>
+              <input type="text" id="emp-input-account" placeholder="XXXXXXXXXX" class="w-full border border-stone-300 rounded-lg p-2 font-mono font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">IFSC Code</label>
+              <input type="text" id="emp-input-ifsc" placeholder="HDFC0001234" class="w-full uppercase border border-stone-300 rounded-lg p-2 font-mono font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Salary & Commission Settings -->
+        <div class="bg-amber-50/50 p-3 rounded-xl border border-amber-200/80 space-y-2.5">
+          <span class="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-sack-dollar text-amber-600"></i> Salary & Commission Structure
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Base Salary (₹)</label>
+              <input type="number" id="emp-input-salary" placeholder="25000" min="0" step="500" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Salary Frequency</label>
+              <select id="emp-input-salarytype" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <option value="Monthly">Monthly Fixed</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Daily">Daily Retainer</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Service Commission (%)</label>
+              <input type="number" id="emp-input-servicecomm" value="30" min="0" max="100" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-stone-600 font-semibold mb-1">Retail Product Comm. (%)</label>
+              <input type="number" id="emp-input-retailcomm" value="10" min="0" max="100" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeNewEmployeeModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveNewEmployee()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Save Employee</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Employee Salary & Commission Modal -->
+  <div id="edit-salary-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-pen-to-square text-brand-600"></i> Edit Salary & Commissions
+          </h3>
+          <p class="text-[10px] text-stone-500" id="edit-salary-staff-title">Vikram Mehta</p>
+        </div>
+        <button onclick="closeEditSalaryModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="edit-salary-staff-id" />
+
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Base Salary (₹)</label>
+            <input type="number" id="edit-input-salary" min="0" step="500" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Frequency</label>
+            <select id="edit-input-salarytype" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <option value="Monthly">Monthly</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Daily">Daily</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Service Comm. (%)</label>
+            <input type="number" id="edit-input-servicecomm" min="0" max="100" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Retail Comm. (%)</label>
+            <input type="number" id="edit-input-retailcomm" min="0" max="100" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeEditSalaryModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveSalaryCommissionChanges()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Update Rates</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Stock / Restock Product Modal -->
+  <div id="restock-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-boxes-stacked text-emerald-600"></i> Restock / Add Inventory
+          </h3>
+          <p class="text-[11px] text-stone-500">Update stock quantities for retail and spa backbar items</p>
+        </div>
+        <button onclick="closeRestockModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-600 font-semibold mb-1">Select Product *</label>
+          <select id="restock-select-product" onchange="onRestockProductChange(this.value)" class="w-full border border-stone-300 rounded-lg p-2 bg-white font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <div class="bg-stone-50 p-2.5 rounded-xl border border-stone-200 flex items-center justify-between text-xs">
+          <span class="text-stone-500">Current Stock in Hand:</span>
+          <span id="restock-current-count" class="font-extrabold text-stone-900">0 Units</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Add Qty (Units) *</label>
+            <input type="number" id="restock-add-qty" placeholder="10" min="1" step="1" value="10" class="w-full border border-stone-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-stone-600 font-semibold mb-1">Supplier / Batch Note</label>
+            <input type="text" id="restock-note" placeholder="e.g. Batch #902" class="w-full border border-stone-300 rounded-lg p-2 font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeRestockModal()" class="px-4 py-2 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 text-xs font-semibold">Cancel</button>
+        <button onclick="saveRestockQuantity()" class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs">Confirm Stock In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. View Employee KYC Modal -->
+  <div id="view-employee-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-address-card text-brand-600"></i> Employee Dossier & KYC Record
+        </h3>
+        <button onclick="closeViewEmployeeModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="view-employee-content" class="space-y-3 text-xs">
+        <!-- Dynamically generated via JS -->
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-200">
+        <button onclick="closeViewEmployeeModal()" class="px-4 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-bold">Close Dossier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Thermal Receipt Modal (80mm Printable Slip) -->
+  <div id="receipt-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-4 flex flex-col max-h-[90vh]">
+      <div class="flex justify-between items-center pb-2 border-b border-stone-200 no-print">
+        <span class="font-bold text-xs text-stone-600 flex items-center gap-1.5">
+          <i class="fa-solid fa-print text-brand-600"></i> Thermal Receipt Preview (80mm)
+        </span>
+        <button onclick="closeReceiptModal()" class="text-stone-400 hover:text-stone-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Receipt Content (Printable Area) -->
+      <div class="flex-1 overflow-y-auto py-3 custom-scrollbar">
+        <div id="thermal-receipt-container" class="bg-white font-mono text-[11px] leading-tight text-stone-800 p-2 border border-dashed border-stone-300 rounded-lg">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="pt-3 border-t border-stone-200 flex gap-2 no-print">
+        <button onclick="closeReceiptModal()" class="flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold">Close</button>
+        <button onclick="window.print()" class="flex-1 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-print"></i> Print Receipt
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Toast Notification System (replaces alerts) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <script>
+    /* ================================================================
+       APPLICATION STATE AND INITIAL DATA
+       ================================================================ */
+    const STATE = {
+      activeTab: 'pos',
+      activeCategory: 'all',
+      paymentMethod: 'upi',
+      todaySales: 28450,
+      todayBillsCount: 14,
+      lastInvoiceData: null,
+
+      /* Breakdown of revenues */
+      serviceSalesTotal: 22300,
+      productSalesTotal: 6150,
+      membershipSalesTotal: 3999,
+
+      /* Operating Expenses Registry */
+      expenses: [
+        { id: 'exp-1', title: 'Premises Rent Indiranagar', category: 'Rent', amount: 35000, date: '2026-09-01', mode: 'Bank Transfer', notes: 'Monthly lease rental' },
+        { id: 'exp-2', title: 'BESCOM Power & AC Electricity', category: 'Utilities', amount: 6850, date: '2026-09-05', mode: 'UPI', notes: 'Meter #48293' },
+        { id: 'exp-3', title: 'L\'Oréal Backbar Developers & Bleach', category: 'Supplies', amount: 8400, date: '2026-09-08', mode: 'Bank Transfer', notes: 'Bulk chemical stock' },
+        { id: 'exp-4', title: 'Clean Linen & Spa Towels Laundry', category: 'Housekeeping', amount: 2800, date: '2026-09-12', mode: 'Cash', notes: 'Weekly 400 towels' },
+        { id: 'exp-5', title: 'Instagram & Local Ads Campaign', category: 'Marketing', amount: 3500, date: '2026-09-14', mode: 'Credit Card', notes: 'Festive campaign' },
+        { id: 'exp-6', title: 'Coffee Beans & Green Tea Pantry', category: 'Pantry', amount: 1250, date: '2026-09-15', mode: 'UPI', notes: 'Client refreshments' }
+      ],
+
+      /* Chart instances for memory cleanup */
+      charts: {
+        bar: null,
+        doughnut: null
+      },
+
+      shopProfile: {
+        name: 'Aura Luxe Salon & Spa',
+        branch: 'Indiranagar Flagship',
+        tagline: 'Premium Hair, Skin & Wellness Sanctuary',
+        gstin: '29AABCU9603R1ZM',
+        taxRate: 18,
+        phone: '+91 80 4123 9876',
+        upi: 'auraluxe@okhdfcbank',
+        address: '#482, 100ft Road, 12th Main, Indiranagar, Bengaluru, Karnataka 560038'
+      },
+
+      memberships: [
+        { id: 'm-silver', name: 'Silver Club', price: 1999, discount: 10, bonus: 300, validity: 6, perks: '10% off all haircuts and manicures' },
+        { id: 'm-gold', name: 'Gold VIP', price: 3999, discount: 15, bonus: 800, validity: 12, perks: '15% off services + free scalp check + 1 guest pass' },
+        { id: 'm-plat', name: 'Platinum Royale', price: 7999, discount: 20, bonus: 2000, validity: 12, perks: '20% off all services & retail + priority chair booking' }
+      ],
+
+      staff: [
+        { 
+          id: 1, 
+          name: 'Vikram Mehta', 
+          role: 'Master Stylist', 
+          phone: '+91 98860 44321', 
+          whatsapp: '+91 98860 44321',
+          aadhaar: '4589 7812 3456',
+          pan: 'ABCDE7845K',
+          bankName: 'HDFC Bank',
+          accountNo: '50100239485123',
+          ifsc: 'HDFC0001043',
+          address: '#14, 3rd Cross, HAL 2nd Stage, Indiranagar, Bengaluru - 560038',
+          baseSalary: 30000,
+          salaryType: 'Monthly',
+          serviceComm: 0.35, 
+          retailComm: 0.10, 
+          servicesDone: 6, 
+          salesTotal: 14200 
+        },
+        { 
+          id: 2, 
+          name: 'Ananya Roy', 
+          role: 'Senior Colorist', 
+          phone: '+91 97410 88765', 
+          whatsapp: '+91 97410 88765',
+          aadhaar: '6723 9012 8765',
+          pan: 'BQZPR9812L',
+          bankName: 'ICICI Bank',
+          accountNo: '023401567890',
+          ifsc: 'ICIC0000234',
+          address: 'Flat 402, Green Glen Layout, Bellandur, Bengaluru - 560103',
+          baseSalary: 26000,
+          salaryType: 'Monthly',
+          serviceComm: 0.30, 
+          retailComm: 0.10, 
+          servicesDone: 4, 
+          salesTotal: 9800 
+        },
+        { 
+          id: 3, 
+          name: 'Deepak Rao', 
+          role: 'Spa Therapist', 
+          phone: '+91 99011 22345', 
+          whatsapp: '+91 99011 22345',
+          aadhaar: '8912 3456 7890',
+          pan: 'DKLPR4512M',
+          bankName: 'State Bank of India',
+          accountNo: '30495812903',
+          ifsc: 'SBIN0004512',
+          address: '#89, 7th Main, BTM Layout 2nd Stage, Bengaluru - 560076',
+          baseSalary: 22000,
+          salaryType: 'Monthly',
+          serviceComm: 0.25, 
+          retailComm: 0.10, 
+          servicesDone: 5, 
+          salesTotal: 8900 
+        },
+        { 
+          id: 4, 
+          name: 'Sneha Patel', 
+          role: 'Nail Artist', 
+          phone: '+91 98450 67890', 
+          whatsapp: '+91 98450 67890',
+          aadhaar: '3210 9876 5432',
+          pan: 'APQSP2319N',
+          bankName: 'Axis Bank',
+          accountNo: '91802003847561',
+          ifsc: 'UTIB0000845',
+          address: 'No. 22, 1st Cross, Koramangala 4th Block, Bengaluru - 560034',
+          baseSalary: 20000,
+          salaryType: 'Monthly',
+          serviceComm: 0.30, 
+          retailComm: 0.10, 
+          servicesDone: 3, 
+          salesTotal: 4600 
+        }
+      ],
+
+      clients: [
+        { 
+          id: 101, 
+          name: 'Pooja Sharma', 
+          phone: '+91 98860 12345', 
+          membership: 'Gold VIP', 
+          tierId: 'm-gold',
+          wallet: 2400, 
+          visits: 8, 
+          formula: 'Majirel 5.3 (Golden Brown) + 20 Vol. Scalp: Sensitive to ammonia.',
+          patchTest: 'Passed (June 2026)'
+        },
+        { 
+          id: 102, 
+          name: 'Rohan Mehra', 
+          phone: '+91 99160 54321', 
+          membership: 'Silver Club', 
+          tierId: 'm-silver',
+          wallet: 600, 
+          visits: 3, 
+          formula: 'Skin: Oily T-zone. Prefers tea tree and charcoal facials.',
+          patchTest: 'Not required'
+        },
+        { 
+          id: 103, 
+          name: 'Natasha Kapoor', 
+          phone: '+91 97400 98765', 
+          membership: 'Platinum Royale', 
+          tierId: 'm-plat',
+          wallet: 5500, 
+          visits: 14, 
+          formula: 'Balayage Olaplex Step 1 & 2. Dialight 9.02 Toner on ends.',
+          patchTest: 'Passed (Aug 2026)'
+        },
+        { 
+          id: 104, 
+          name: 'Rahul Verma', 
+          phone: '+91 98450 11223', 
+          membership: 'None', 
+          tierId: null,
+          wallet: 0, 
+          visits: 1, 
+          formula: 'Fade #1 on sides, textured crop on top.',
+          patchTest: 'Passed'
+        }
+      ],
+
+      catalog: [
+        { id: 's1', name: 'Creative Haircut & Styling', category: 'Hair', type: 'service', price: 950, duration: '45 min', icon: 'fa-scissors' },
+        { id: 's2', name: 'Moroccanoil Deep Spa Therapy', category: 'Hair', type: 'service', price: 2400, duration: '60 min', icon: 'fa-wand-magic-sparkles' },
+        { id: 's3', name: 'Balayage / Ombre Highlighting', category: 'Hair', type: 'service', price: 4800, duration: '150 min', icon: 'fa-wand-magic-sparkles' },
+        { id: 's4', name: 'Hydra-Dew Glow Facial', category: 'Skin & Spa', type: 'service', price: 2800, duration: '75 min', icon: 'fa-spa' },
+        { id: 's5', name: 'Aroma De-Stress Full Body Massage', category: 'Skin & Spa', type: 'service', price: 3200, duration: '60 min', icon: 'fa-hands' },
+        { id: 's6', name: 'Luxury Gel Spa Pedicure', category: 'Nails', type: 'service', price: 1400, duration: '50 min', icon: 'fa-hand-sparkles' },
+        { id: 's7', name: 'Acrylic Nail Extensions (Set)', category: 'Nails', type: 'service', price: 2200, duration: '90 min', icon: 'fa-hand-sparkles' },
+        { id: 'p1', name: 'L\'Oréal Absolut Repair Shampoo (300ml)', category: 'Retail', type: 'product', price: 1150, stock: 18, icon: 'fa-bottle-droplet' },
+        { id: 'p2', name: 'Moroccanoil Treatment Oil (100ml)', category: 'Retail', type: 'product', price: 3150, stock: 9, icon: 'fa-bottle-droplet' },
+        { id: 'p3', name: 'Dermalogica Daily Microfoliant', category: 'Retail', type: 'product', price: 1950, stock: 12, icon: 'fa-soap' }
+      ],
+
+      cart: [],
+      selectedClientId: 101,
+
+      appointments: [
+        { id: 'apt-1', clientName: 'Natasha Kapoor', phone: '+91 97400 98765', stylist: 'Ananya Roy', service: 'Balayage / Ombre Highlighting', time: '11:00 AM', status: 'In Chair', chair: 'Chair 1' },
+        { id: 'apt-2', clientName: 'Rohan Mehra', phone: '+91 99160 54321', stylist: 'Deepak Rao', service: 'Hydra-Dew Glow Facial', time: '11:30 AM', status: 'Waiting', chair: 'Spa Room 2' },
+        { id: 'apt-3', clientName: 'Pooja Sharma', phone: '+91 98860 12345', stylist: 'Vikram Mehta', service: 'Moroccanoil Deep Spa Therapy', time: '12:15 PM', status: 'Booked', chair: 'Chair 4' }
+      ]
+    };
+
+    function showAppNotification(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      const bgClass = type === 'error' ? 'bg-rose-900 border-rose-700 text-rose-100' : 'bg-stone-900 border-stone-800 text-white';
+      const icon = type === 'error' ? 'fa-triangle-exclamation text-rose-400' : 'fa-circle-check text-emerald-400';
+
+      toast.className = `${bgClass} border px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2.5 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+      toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+      
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function startLiveClock() {
+      const clockEl = document.getElementById('live-clock');
+      const update = () => {
+        const now = new Date();
+        if (clockEl) {
+          clockEl.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+      };
+      update();
+      setInterval(update, 1000);
+    }
+
+    function switchTab(tabId) {
+      STATE.activeTab = tabId;
+
+      // Update Nav buttons styling
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.classList.remove('active', 'bg-brand-50', 'text-brand-700');
+        btn.classList.add('text-stone-600');
+      });
+
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('active', 'bg-brand-50', 'text-brand-700');
+        activeBtn.classList.remove('text-stone-600');
+      }
+
+      // Hide all view sections
+      const sections = ['pos', 'appointments', 'clients', 'memberships', 'catalog-mgmt', 'staff', 'pnl'];
+      sections.forEach(sec => {
+        const el = document.getElementById(`view-${sec}`);
+        if (el) {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+        }
+      });
+
+      // Show selected section
+      const activeSection = document.getElementById(`view-${tabId}`);
+      if (activeSection) {
+        activeSection.classList.remove('hidden');
+        activeSection.classList.add('flex');
+      }
+
+      // Render tab-specific data
+      if (tabId === 'appointments') renderAppointments();
+      if (tabId === 'clients') renderClientsList();
+      if (tabId === 'memberships') renderMembershipsView();
+      if (tabId === 'catalog-mgmt') renderCatalogManagementTable();
+      if (tabId === 'staff') {
+        renderStaffDirectory();
+        renderStaffCommissions();
+      }
+      if (tabId === 'pnl') {
+        renderPnLView();
+      }
+    }
+
+    function calculatePnLSummary() {
+      // 1. Inflows
+      const serviceSales = STATE.serviceSalesTotal || 0;
+      const productSales = STATE.productSalesTotal || 0;
+      const membershipSales = STATE.membershipSalesTotal || 0;
+      const totalRevenue = serviceSales + productSales + membershipSales;
+
+      // 2. Staff Payroll & Compensation
+      const totalSalaries = STATE.staff.reduce((sum, s) => sum + (s.baseSalary || 0), 0);
+      const totalCommissions = STATE.staff.reduce((sum, s) => sum + Math.round(s.salesTotal * s.serviceComm), 0);
+      const totalPayroll = totalSalaries + totalCommissions;
+
+      // 3. Operating Overheads
+      const totalExpenses = STATE.expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+
+      // Category-wise expenses
+      const expensesByCategory = {
+        Rent: 0,
+        Utilities: 0,
+        Supplies: 0,
+        Housekeeping: 0,
+        Marketing: 0,
+        Pantry: 0,
+        Maintenance: 0,
+        Miscellaneous: 0
+      };
+
+      STATE.expenses.forEach(exp => {
+        if (expensesByCategory.hasOwnProperty(exp.category)) {
+          expensesByCategory[exp.category] += parseFloat(exp.amount) || 0;
+        } else {
+          expensesByCategory.Miscellaneous += parseFloat(exp.amount) || 0;
+        }
+      });
+
+      // 4. Net Operating Profit
+      const totalOutflow = totalPayroll + totalExpenses;
+      const netProfit = totalRevenue - totalOutflow;
+      const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+      return {
+        serviceSales,
+        productSales,
+        membershipSales,
+        totalRevenue,
+        totalSalaries,
+        totalCommissions,
+        totalPayroll,
+        totalExpenses,
+        expensesByCategory,
+        totalOutflow,
+        netProfit,
+        margin
+      };
+    }
+
+    function renderPnLView() {
+      const pnl = calculatePnLSummary();
+
+      // Top KPI metrics
+      const kpiRev = document.getElementById('pnl-kpi-revenue');
+      const kpiProd = document.getElementById('pnl-kpi-products');
+      const kpiProdShare = document.getElementById('pnl-kpi-product-share');
+      const kpiPay = document.getElementById('pnl-kpi-payroll');
+      const kpiExp = document.getElementById('pnl-kpi-expenses');
+      const kpiProfit = document.getElementById('pnl-kpi-netprofit');
+      const kpiMargin = document.getElementById('pnl-kpi-margin');
+      const profitCard = document.getElementById('pnl-kpi-profit-card');
+      const profitLabel = document.getElementById('pnl-kpi-profit-label');
+      const profitIcon = document.getElementById('pnl-kpi-profit-icon');
+
+      if (kpiRev) kpiRev.innerText = `₹${pnl.totalRevenue.toLocaleString('en-IN')}`;
+      if (kpiProd) kpiProd.innerText = `₹${pnl.productSales.toLocaleString('en-IN')}`;
+      if (kpiProdShare) {
+        const prodPct = pnl.totalRevenue > 0 ? ((pnl.productSales / pnl.totalRevenue) * 100).toFixed(1) : 0;
+        kpiProdShare.innerText = `${prodPct}% of gross sales`;
+      }
+      if (kpiPay) kpiPay.innerText = `₹${pnl.totalPayroll.toLocaleString('en-IN')}`;
+      if (kpiExp) kpiExp.innerText = `₹${pnl.totalExpenses.toLocaleString('en-IN')}`;
+      if (kpiProfit) kpiProfit.innerText = `₹${Math.abs(pnl.netProfit).toLocaleString('en-IN')}`;
+      if (kpiMargin) kpiMargin.innerText = `${pnl.margin}% Profit Margin`;
+
+      if (profitCard) {
+        if (pnl.netProfit >= 0) {
+          profitCard.className = 'bg-emerald-50/70 border-2 border-emerald-300 rounded-2xl p-3.5 shadow-2xs text-emerald-950';
+          if (profitLabel) profitLabel.innerText = 'Net Operating Profit';
+          if (profitIcon) profitIcon.className = 'w-6 h-6 rounded-lg bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs';
+          if (kpiProfit) kpiProfit.className = 'text-xl font-black text-emerald-700';
+          if (kpiMargin) kpiMargin.className = 'text-[10px] font-bold text-emerald-600';
+        } else {
+          profitCard.className = 'bg-rose-50/70 border-2 border-rose-300 rounded-2xl p-3.5 shadow-2xs text-rose-950';
+          if (profitLabel) profitLabel.innerText = 'Net Operating Loss';
+          if (profitIcon) profitIcon.className = 'w-6 h-6 rounded-lg bg-rose-200 text-rose-800 flex items-center justify-center text-xs';
+          if (kpiProfit) kpiProfit.className = 'text-xl font-black text-rose-700';
+          if (kpiMargin) kpiMargin.className = 'text-[10px] font-bold text-rose-600';
+        }
+      }
+
+      // Statement Breakdown Table
+      const setStatementVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = `₹${Math.round(val).toLocaleString('en-IN')}`;
+      };
+
+      setStatementVal('statement-rev-services', pnl.serviceSales);
+      setStatementVal('statement-rev-products', pnl.productSales);
+      setStatementVal('statement-rev-memberships', pnl.membershipSales);
+      setStatementVal('statement-total-revenue', pnl.totalRevenue);
+
+      setStatementVal('statement-pay-salary', pnl.totalSalaries);
+      setStatementVal('statement-pay-comm', pnl.totalCommissions);
+      setStatementVal('statement-total-payroll', pnl.totalPayroll);
+
+      setStatementVal('statement-exp-rent', pnl.expensesByCategory.Rent);
+      setStatementVal('statement-exp-util', pnl.expensesByCategory.Utilities);
+      setStatementVal('statement-exp-supplies', pnl.expensesByCategory.Supplies);
+      setStatementVal('statement-exp-other', pnl.expensesByCategory.Housekeeping + pnl.expensesByCategory.Marketing + pnl.expensesByCategory.Pantry + pnl.expensesByCategory.Maintenance + pnl.expensesByCategory.Miscellaneous);
+      setStatementVal('statement-total-expenses', pnl.totalExpenses);
+
+      const netStmtEl = document.getElementById('statement-net-profit');
+      if (netStmtEl) {
+        netStmtEl.innerText = `${pnl.netProfit >= 0 ? '+' : '-'} ₹${Math.abs(pnl.netProfit).toLocaleString('en-IN')}`;
+        netStmtEl.className = `py-3 px-3 text-right font-mono font-black ${pnl.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      }
+
+      renderExpensesTable();
+      renderPnLCharts(pnl);
+    }
+
+    function renderExpensesTable() {
+      const tbody = document.getElementById('expenses-table-body');
+      const totalCount = document.getElementById('expenses-total-count');
+      if (!tbody) return;
+
+      if (totalCount) totalCount.innerText = `${STATE.expenses.length} Logged Overheads`;
+
+      if (STATE.expenses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-stone-400">No overhead expenses recorded yet. Click "+ Record Business Expense" to log one.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = STATE.expenses.map((exp, idx) => {
+        let badgeColor = 'bg-stone-100 text-stone-700';
+        if (exp.category === 'Rent') badgeColor = 'bg-purple-100 text-purple-800';
+        if (exp.category === 'Utilities') badgeColor = 'bg-amber-100 text-amber-800';
+        if (exp.category === 'Supplies') badgeColor = 'bg-blue-100 text-blue-800';
+        if (exp.category === 'Housekeeping') badgeColor = 'bg-emerald-100 text-emerald-800';
+        if (exp.category === 'Marketing') badgeColor = 'bg-rose-100 text-rose-800';
+
+        return `
+          <tr class="hover:bg-stone-50 transition">
+            <td class="p-2.5">
+              <span class="font-bold text-stone-900 block leading-tight">${exp.title}</span>
+              <span class="text-[10px] text-stone-400">${exp.date || 'Today'} ${exp.notes ? `• ${exp.notes}` : ''}</span>
+            </td>
+            <td class="p-2.5">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${badgeColor}">
+                ${exp.category}
+              </span>
+            </td>
+            <td class="p-2.5 font-black text-stone-900">₹${parseFloat(exp.amount).toLocaleString('en-IN')}</td>
+            <td class="p-2.5 text-[11px] text-stone-500 font-medium">${exp.mode || 'UPI'}</td>
+            <td class="p-2.5 text-right">
+              <button onclick="deleteExpense(${idx})" class="text-stone-400 hover:text-rose-600 transition p-1" title="Delete record">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPnLCharts(pnl) {
+      if (typeof Chart === 'undefined') return;
+
+      // 1. Main Comparative Bar Chart
+      const barCanvas = document.getElementById('pnl-bar-chart');
+      if (barCanvas) {
+        if (STATE.charts.bar) {
+          STATE.charts.bar.destroy();
+        }
+
+        const barCtx = barCanvas.getContext('2d');
+        STATE.charts.bar = new Chart(barCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Services Revenue', 'Product Sales', 'Staff Base Pay', 'Stylist Comm.', 'Operating Exp.', 'Net Profit'],
+            datasets: [{
+              label: 'Amount (₹)',
+              data: [
+                pnl.serviceSales,
+                pnl.productSales,
+                pnl.totalSalaries,
+                pnl.totalCommissions,
+                pnl.totalExpenses,
+                Math.max(0, pnl.netProfit)
+              ],
+              backgroundColor: [
+                '#10b981', // Emerald - Services
+                '#f59e0b', // Amber - Products
+                '#3b82f6', // Blue - Staff Salaries
+                '#06b6d4', // Cyan - Commissions
+                '#f43f5e', // Rose - Expenses
+                pnl.netProfit >= 0 ? '#8b5cf6' : '#94a3b8' // Purple - Net Profit
+              ],
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return ` ₹${context.raw.toLocaleString('en-IN')}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(value) {
+                    return '₹' + (value >= 1000 ? (value / 1000) + 'k' : value);
+                  },
+                  font: { size: 10 }
+                },
+                grid: { color: '#f3f4f6' }
+              },
+              x: {
+                ticks: { font: { size: 10 } },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Outflow Allocation Doughnut Chart
+      const doughnutCanvas = document.getElementById('pnl-doughnut-chart');
+      if (doughnutCanvas) {
+        if (STATE.charts.doughnut) {
+          STATE.charts.doughnut.destroy();
+        }
+
+        const doughnutCtx = doughnutCanvas.getContext('2d');
+        const cat = pnl.expensesByCategory;
+
+        STATE.charts.doughnut = new Chart(doughnutCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Staff Salaries', 'Commissions', 'Rent & Lease', 'Utilities', 'Backbar Supplies', 'Laundry & Other'],
+            datasets: [{
+              data: [
+                pnl.totalSalaries,
+                pnl.totalCommissions,
+                cat.Rent,
+                cat.Utilities,
+                cat.Supplies,
+                (cat.Housekeeping + cat.Marketing + cat.Pantry + cat.Maintenance + cat.Miscellaneous)
+              ],
+              backgroundColor: [
+                '#3b82f6', // Salaries
+                '#06b6d4', // Comm
+                '#a855f7', // Rent
+                '#f59e0b', // Utilities
+                '#ec4899', // Supplies
+                '#10b981'  // Laundry & Other
+              ],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  boxWidth: 10,
+                  font: { size: 10 },
+                  padding: 8
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw || 0;
+                    const total = pnl.totalOutflow || 1;
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return ` ${label}: ₹${value.toLocaleString('en-IN')} (${percentage}%)`;
+                  }
+                }
+              }
+            },
+            cutout: '62%'
+          }
+        });
+      }
+    }
+
+    function openNewExpenseModal() {
+      document.getElementById('expense-input-title').value = '';
+      document.getElementById('expense-input-amount').value = '';
+      document.getElementById('expense-input-notes').value = '';
+      document.getElementById('expense-input-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('expense-input-category').value = 'Utilities';
+      document.getElementById('expense-input-mode').value = 'UPI';
+
+      const modal = document.getElementById('new-expense-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewExpenseModal() {
+      const modal = document.getElementById('new-expense-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveNewExpense() {
+      const title = document.getElementById('expense-input-title').value.trim();
+      const amount = parseFloat(document.getElementById('expense-input-amount').value);
+      const category = document.getElementById('expense-input-category').value;
+      const date = document.getElementById('expense-input-date').value;
+      const mode = document.getElementById('expense-input-mode').value;
+      const notes = document.getElementById('expense-input-notes').value.trim();
+
+      if (!title || isNaN(amount) || amount <= 0) {
+        showAppNotification('Please specify an Expense title and positive amount in ₹.', 'error');
+        return;
+      }
+
+      STATE.expenses.unshift({
+        id: 'exp-' + Date.now(),
+        title,
+        amount,
+        category,
+        date,
+        mode,
+        notes
+      });
+
+      renderPnLView();
+      closeNewExpenseModal();
+      showAppNotification(`Logged expense "${title}" (₹${amount.toLocaleString('en-IN')}) into ledger!`);
+    }
+
+    function deleteExpense(index) {
+      if (index >= 0 && index < STATE.expenses.length) {
+        const removed = STATE.expenses.splice(index, 1)[0];
+        renderPnLView();
+        showAppNotification(`Removed expense "${removed.title}".`);
+      }
+    }
+
+    function renderCatalog() {
+      const grid = document.getElementById('catalog-grid');
+      if (!grid) return;
+
+      const searchInput = document.getElementById('catalog-search');
+      const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+      const filtered = STATE.catalog.filter(item => {
+        const matchesCategory = (STATE.activeCategory === 'all') || (item.category === STATE.activeCategory);
+        const matchesSearch = item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-stone-400">
+            <i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i>
+            <p class="text-xs font-semibold">No services or products found</p>
+            <button onclick="openNewServiceModal()" class="mt-2 text-xs text-brand-600 font-bold hover:underline">
+              + Add New Service With Custom Price
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(item => `
+        <div onclick="addToCartById('${item.id}')" class="group bg-white border border-stone-200 hover:border-brand-500 rounded-2xl p-3 cursor-pointer transition shadow-2xs hover:shadow-md flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-8 h-8 bg-brand-50 group-hover:bg-brand-600 rounded-bl-xl flex items-center justify-center transition">
+            <i class="fa-solid fa-plus text-[10px] text-brand-600 group-hover:text-white transition"></i>
+          </div>
+
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-stone-100 text-stone-600 group-hover:bg-brand-50 group-hover:text-brand-600 flex items-center justify-center text-xs mb-2 transition">
+              <i class="fa-solid ${item.icon || 'fa-sparkles'}"></i>
+            </div>
+            <h4 class="font-bold text-stone-900 text-xs leading-tight mb-1 group-hover:text-brand-700 transition">${item.name}</h4>
+            <span class="inline-block text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">
+              ${item.category}
+            </span>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-stone-100 flex items-center justify-between">
+            <span class="font-extrabold text-stone-900 text-xs">₹${item.price.toLocaleString('en-IN')}</span>
+            <span class="text-[10px] text-stone-400 font-medium">${item.duration || `${item.stock} in stock`}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setCategory(cat) {
+      STATE.activeCategory = cat;
+      document.querySelectorAll('.cat-pill').forEach(pill => {
+        pill.classList.remove('active', 'bg-stone-900', 'text-white');
+        pill.classList.add('bg-white', 'text-stone-600');
+      });
+
+      event.currentTarget.classList.add('active', 'bg-stone-900', 'text-white');
+      event.currentTarget.classList.remove('bg-white', 'text-stone-600');
+      renderCatalog();
+    }
+
+    function filterCatalog() {
+      renderCatalog();
+    }
+
+    function addToCartById(itemId) {
+      const item = STATE.catalog.find(c => c.id === itemId);
+      if (item) addToCart(item);
+    }
+
+    function addToCart(item) {
+      const existing = STATE.cart.find(c => c.itemId === item.id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        STATE.cart.push({
+          itemId: item.id,
+          name: item.name,
+          type: item.type,
+          price: item.price,
+          qty: 1,
+          staffId: STATE.staff[0].id
+        });
+      }
+      renderCart();
+      showAppNotification(`Added "${item.name}" to cart`);
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items-container');
+      const checkoutBtn = document.getElementById('btn-complete-bill');
+      if (!container) return;
+
+      if (STATE.cart.length === 0) {
+        container.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center text-stone-400 py-12">
+            <div class="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-lg mb-2">
+              <i class="fa-solid fa-receipt"></i>
+            </div>
+            <p class="text-xs font-bold text-stone-600">Cart is empty</p>
+            <p class="text-[10px] text-stone-400 mt-0.5">Click services or retail items to bill</p>
+          </div>
+        `;
+        if (checkoutBtn) checkoutBtn.disabled = true;
+        calculateCartTotals();
+        return;
+      }
+
+      if (checkoutBtn) checkoutBtn.disabled = false;
+      container.innerHTML = '';
+
+      STATE.cart.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs space-y-1.5';
+
+        const staffOptions = STATE.staff.map(s => 
+          `<option value="${s.id}" ${s.id === item.staffId ? 'selected' : ''}>${s.name} (${s.role.split(' ')[0]})</option>`
+        ).join('');
+
+        itemDiv.innerHTML = `
+          <div class="flex justify-between items-start">
+            <span class="font-bold text-stone-900 leading-tight">${item.name}</span>
+            <button onclick="removeCartItem(${index})" class="text-stone-400 hover:text-rose-500 transition ml-2">
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center gap-1">
+              <label class="text-[10px] text-stone-500 font-medium">Stylist:</label>
+              <select onchange="updateCartStaff(${index}, this.value)" class="text-[10px] bg-white border border-stone-300 rounded px-1.5 py-0.5 font-medium focus:outline-none">
+                ${staffOptions}
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div class="flex items-center border border-stone-300 rounded bg-white overflow-hidden">
+                <button onclick="updateCartQty(${index}, -1)" class="w-5 h-5 text-stone-600 hover:bg-stone-100 flex items-center justify-center font-bold text-xs">-</button>
+                <span class="w-5 text-center font-bold text-xs">${item.qty}</span>
+                <button onclick="updateCartQty(${index}, 1)" class="w-5 h-5 text-stone-600 hover:bg-stone-100 flex items-center justify-center font-bold text-xs">+</button>
+              </div>
+
+              <!-- Editable Price Field -->
+              <div class="flex items-center" title="Click to edit unit price">
+                <span class="text-stone-400 font-bold text-[11px] mr-0.5">₹</span>
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="50" 
+                  value="${item.price}" 
+                  onchange="updateCartItemPrice(${index}, this.value)" 
+                  class="w-16 text-right border border-stone-300 rounded px-1 py-0.5 font-bold text-stone-900 text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none" 
+                />
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(itemDiv);
+      });
+
+      calculateCartTotals();
+    }
+
+    function updateCartQty(index, change) {
+      if (!STATE.cart[index]) return;
+      STATE.cart[index].qty += change;
+      if (STATE.cart[index].qty <= 0) {
+        STATE.cart.splice(index, 1);
+      }
+      renderCart();
+    }
+
+    function removeCartItem(index) {
+      STATE.cart.splice(index, 1);
+      renderCart();
+    }
+
+    function updateCartStaff(index, staffId) {
+      if (STATE.cart[index]) {
+        STATE.cart[index].staffId = parseInt(staffId);
+      }
+    }
+
+    function updateCartItemPrice(index, newPrice) {
+      const price = parseFloat(newPrice);
+      if (!isNaN(price) && price >= 0) {
+        STATE.cart[index].price = price;
+        calculateCartTotals();
+      } else {
+        renderCart();
+      }
+    }
+
+    function clearCart() {
+      STATE.cart = [];
+      renderCart();
+      showAppNotification('Active cart cleared');
+    }
+
+    function calculateCartTotals() {
+      const subtotal = STATE.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const discountSelect = document.getElementById('cart-discount-select');
+      const discountType = discountSelect ? discountSelect.value : 'none';
+      const tipInput = document.getElementById('cart-tip-input');
+      const tip = tipInput ? parseFloat(tipInput.value) || 0 : 0;
+
+      let discount = 0;
+      const client = STATE.clients.find(c => c.id === STATE.selectedClientId);
+
+      if (discountType === 'membership' && client && client.tierId) {
+        const plan = STATE.memberships.find(m => m.id === client.tierId);
+        if (plan) {
+          discount = subtotal * (plan.discount / 100);
+        }
+      } else if (discountType === 'promo10') {
+        discount = subtotal * 0.10;
+      } else if (discountType === 'festive500') {
+        discount = Math.min(subtotal, 500);
+      }
+
+      const taxableAmount = Math.max(0, subtotal - discount);
+      const taxRate = STATE.shopProfile.taxRate || 18;
+      const tax = taxableAmount * (taxRate / 100);
+      const grandTotal = taxableAmount + tax + tip;
+
+      // Update DOM
+      document.getElementById('summary-subtotal').innerText = `₹${subtotal.toLocaleString('en-IN')}`;
+      document.getElementById('summary-discount').innerText = `-₹${Math.round(discount).toLocaleString('en-IN')}`;
+      document.getElementById('summary-tax').innerText = `₹${Math.round(tax).toLocaleString('en-IN')}`;
+      document.getElementById('summary-tax-rate').innerText = `${taxRate}%`;
+      document.getElementById('summary-grand-total').innerText = `₹${Math.round(grandTotal).toLocaleString('en-IN')}`;
+
+      return { subtotal, discount, tax, tip, grandTotal, taxRate };
+    }
+
+    function setPaymentMethod(method) {
+      STATE.paymentMethod = method;
+      document.querySelectorAll('.pay-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-brand-600', 'text-white', 'border-brand-600');
+        btn.classList.add('bg-white', 'text-stone-700', 'border-stone-300');
+      });
+
+      event.currentTarget.classList.add('active', 'bg-brand-600', 'text-white', 'border-brand-600');
+      event.currentTarget.classList.remove('bg-white', 'text-stone-700', 'border-stone-300');
+    }
+
+    function populateClientSelect() {
+      const select = document.getElementById('cart-client-select');
+      const aptSelect = document.getElementById('apt-input-client');
+      if (!select) return;
+
+      const options = STATE.clients.map(c => `
+        <option value="${c.id}" ${c.id === STATE.selectedClientId ? 'selected' : ''}>
+          ${c.name} (${c.phone}) - ${c.membership}
+        </option>
+      `).join('');
+
+      select.innerHTML = options;
+      if (aptSelect) aptSelect.innerHTML = options;
+      updateClientInfoPill();
+    }
+
+    function onClientSelected(clientId) {
+      STATE.selectedClientId = parseInt(clientId);
+      updateClientInfoPill();
+      
+      // Auto-set discount to membership if applicable
+      const client = STATE.clients.find(c => c.id === STATE.selectedClientId);
+      const discountSelect = document.getElementById('cart-discount-select');
+      if (client && client.tierId && discountSelect) {
+        discountSelect.value = 'membership';
+      }
+      calculateCartTotals();
+    }
+
+    function updateClientInfoPill() {
+      const client = STATE.clients.find(c => c.id === STATE.selectedClientId);
+      const tagEl = document.getElementById('client-membership-tag');
+      const allergyEl = document.getElementById('client-allergy-note');
+      const walletEl = document.getElementById('client-wallet-val');
+
+      if (!client) return;
+
+      if (tagEl) {
+        tagEl.innerHTML = client.tierId 
+          ? `<i class="fa-solid fa-crown text-amber-500"></i> ${client.membership} Member`
+          : `<span class="text-stone-500">Regular Client (No Membership)</span>`;
+      }
+      if (allergyEl) allergyEl.innerText = client.formula || 'No formulation note logged';
+      if (walletEl) walletEl.innerText = `₹${client.wallet.toLocaleString('en-IN')}`;
+    }
+
+    function openShopProfileModal() {
+      const p = STATE.shopProfile;
+      document.getElementById('shop-input-name').value = p.name;
+      document.getElementById('shop-input-branch').value = p.branch;
+      document.getElementById('shop-input-tagline').value = p.tagline;
+      document.getElementById('shop-input-gstin').value = p.gstin;
+      document.getElementById('shop-input-taxrate').value = p.taxRate;
+      document.getElementById('shop-input-phone').value = p.phone;
+      document.getElementById('shop-input-upi').value = p.upi;
+      document.getElementById('shop-input-address').value = p.address;
+
+      const modal = document.getElementById('shop-profile-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeShopProfileModal() {
+      const modal = document.getElementById('shop-profile-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveShopProfile() {
+      STATE.shopProfile.name = document.getElementById('shop-input-name').value.trim() || 'Aura Luxe Salon';
+      STATE.shopProfile.branch = document.getElementById('shop-input-branch').value.trim() || 'Main Outlet';
+      STATE.shopProfile.tagline = document.getElementById('shop-input-tagline').value.trim();
+      STATE.shopProfile.gstin = document.getElementById('shop-input-gstin').value.trim();
+      STATE.shopProfile.taxRate = parseFloat(document.getElementById('shop-input-taxrate').value) || 18;
+      STATE.shopProfile.phone = document.getElementById('shop-input-phone').value.trim();
+      STATE.shopProfile.upi = document.getElementById('shop-input-upi').value.trim();
+      STATE.shopProfile.address = document.getElementById('shop-input-address').value.trim();
+
+      // Update UI headers
+      document.getElementById('header-shop-name').innerText = STATE.shopProfile.name;
+      document.getElementById('header-shop-branch').innerText = STATE.shopProfile.branch;
+      document.getElementById('header-shop-gstin').innerText = `GST: ${STATE.shopProfile.gstin || 'N/A'}`;
+
+      calculateCartTotals();
+      closeShopProfileModal();
+      showAppNotification('Shop Profile & Tax Settings updated successfully!');
+    }
+
+    function openNewServiceModal() {
+      document.getElementById('service-input-name').value = '';
+      document.getElementById('service-input-price').value = '';
+      document.getElementById('service-input-duration').value = '45 min';
+      document.getElementById('service-input-stock').value = '10';
+      document.getElementById('service-input-type').value = 'service';
+      toggleServiceTypeFields('service');
+
+      const modal = document.getElementById('new-service-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewServiceModal() {
+      const modal = document.getElementById('new-service-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function toggleServiceTypeFields(type) {
+      const durField = document.getElementById('service-field-duration');
+      const stockField = document.getElementById('service-field-stock');
+      const catSelect = document.getElementById('service-input-category');
+
+      if (type === 'product') {
+        durField.classList.add('hidden');
+        stockField.classList.remove('hidden');
+        catSelect.value = 'Retail';
+      } else {
+        durField.classList.remove('hidden');
+        stockField.classList.add('hidden');
+        if (catSelect.value === 'Retail') catSelect.value = 'Hair';
+      }
+    }
+
+    function saveNewService() {
+      const name = document.getElementById('service-input-name').value.trim();
+      const type = document.getElementById('service-input-type').value;
+      const category = document.getElementById('service-input-category').value;
+      const price = parseFloat(document.getElementById('service-input-price').value);
+      const icon = document.getElementById('service-input-icon').value;
+      const duration = document.getElementById('service-input-duration').value.trim() || '45 min';
+      const stock = parseInt(document.getElementById('service-input-stock').value) || 10;
+      const addToCartDirectly = document.getElementById('service-check-addtocart').checked;
+
+      if (!name || isNaN(price) || price < 0) {
+        showAppNotification('Please provide a valid Service/Item name and Price (₹).', 'error');
+        return;
+      }
+
+      const newItem = {
+        id: (type === 'service' ? 's' : 'p') + (Date.now() % 10000),
+        name,
+        category,
+        type,
+        price,
+        duration: type === 'service' ? duration : undefined,
+        stock: type === 'product' ? stock : undefined,
+        icon
+      };
+
+      STATE.catalog.unshift(newItem);
+      renderCatalog();
+      renderCatalogManagementTable();
+
+      if (addToCartDirectly) {
+        addToCart(newItem);
+      }
+
+      closeNewServiceModal();
+      showAppNotification(`Added "${name}" (₹${price.toLocaleString('en-IN')}) to service catalog!`);
+    }
+
+    function openQuickCustomModal() {
+      document.getElementById('quick-custom-name').value = '';
+      document.getElementById('quick-custom-price').value = '';
+
+      const staffSelect = document.getElementById('quick-custom-staff');
+      if (staffSelect) {
+        staffSelect.innerHTML = STATE.staff.map(s => 
+          `<option value="${s.id}">${s.name} (${s.role.split(' ')[0]})</option>`
+        ).join('');
+      }
+
+      const modal = document.getElementById('quick-custom-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeQuickCustomModal() {
+      const modal = document.getElementById('quick-custom-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function addQuickCustomCharge() {
+      const name = document.getElementById('quick-custom-name').value.trim();
+      const price = parseFloat(document.getElementById('quick-custom-price').value);
+      const staffId = parseInt(document.getElementById('quick-custom-staff').value) || STATE.staff[0].id;
+
+      if (!name || isNaN(price) || price < 0) {
+        showAppNotification('Please enter a service description and valid price.', 'error');
+        return;
+      }
+
+      STATE.cart.push({
+        itemId: 'custom-' + Date.now(),
+        name: name,
+        type: 'service',
+        price: price,
+        qty: 1,
+        staffId: staffId
+      });
+
+      renderCart();
+      closeQuickCustomModal();
+      showAppNotification(`Added custom service "${name}" (₹${price.toLocaleString('en-IN')}) to invoice!`);
+    }
+
+    function openNewClientModal() {
+      document.getElementById('client-input-name').value = '';
+      document.getElementById('client-input-phone').value = '';
+      document.getElementById('client-input-wallet').value = '0';
+      document.getElementById('client-input-formula').value = '';
+
+      const tierSelect = document.getElementById('client-input-tier');
+      if (tierSelect) {
+        tierSelect.innerHTML = `
+          <option value="none">No Membership (Regular)</option>
+          ${STATE.memberships.map(m => `<option value="${m.id}">${m.name} (${m.discount}% Off)</option>`).join('')}
+        `;
+      }
+
+      const modal = document.getElementById('new-client-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewClientModal() {
+      const modal = document.getElementById('new-client-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveNewClient() {
+      const name = document.getElementById('client-input-name').value.trim();
+      const phone = document.getElementById('client-input-phone').value.trim();
+      const tierId = document.getElementById('client-input-tier').value;
+      const wallet = parseFloat(document.getElementById('client-input-wallet').value) || 0;
+      const formula = document.getElementById('client-input-formula').value.trim();
+
+      if (!name || !phone) {
+        showAppNotification('Please enter Client Name and Phone number.', 'error');
+        return;
+      }
+
+      const plan = STATE.memberships.find(m => m.id === tierId);
+      const newClient = {
+        id: Date.now() % 100000,
+        name,
+        phone,
+        membership: plan ? plan.name : 'None',
+        tierId: plan ? plan.id : null,
+        wallet: wallet + (plan ? plan.bonus : 0),
+        visits: 1,
+        formula: formula || 'No history logged',
+        patchTest: 'Passed'
+      };
+
+      STATE.clients.unshift(newClient);
+      STATE.selectedClientId = newClient.id;
+
+      populateClientSelect();
+      renderClientsList();
+      closeNewClientModal();
+      showAppNotification(`Client "${name}" registered and selected for billing!`);
+    }
+
+    function renderMembershipsView() {
+      const plansContainer = document.getElementById('membership-plans-grid');
+      const tableBody = document.getElementById('active-members-table');
+
+      if (plansContainer) {
+        plansContainer.innerHTML = STATE.memberships.map(p => `
+          <div class="bg-white border border-stone-200 rounded-2xl p-5 relative overflow-hidden shadow-xs flex flex-col justify-between">
+            <div class="absolute top-0 right-0 px-3 py-1 bg-amber-100 text-amber-800 font-bold text-[10px] rounded-bl-xl uppercase tracking-wider">
+              ${p.validity} Months
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-crown text-amber-500 text-base"></i>
+                <h4 class="font-bold text-stone-900 text-sm">${p.name}</h4>
+              </div>
+              <div class="mb-3">
+                <span class="text-2xl font-black text-stone-900">₹${p.price.toLocaleString('en-IN')}</span>
+                <span class="text-xs text-stone-500"> / year</span>
+              </div>
+              <ul class="text-xs text-stone-600 space-y-1.5 mb-4">
+                <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> <b>${p.discount}% Off</b> on all salon services</li>
+                <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ₹${p.bonus} Instant Bonus Wallet Credits</li>
+                <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ${p.perks}</li>
+              </ul>
+            </div>
+            <button onclick="billMembershipPlan('${p.id}')" class="w-full py-2 bg-stone-900 hover:bg-black text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-cash-register"></i> Bill this Membership
+            </button>
+          </div>
+        `).join('');
+      }
+
+      if (tableBody) {
+        const enrolled = STATE.clients.filter(c => c.tierId);
+        if (enrolled.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-stone-400">No active members enrolled yet</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = enrolled.map(c => {
+          const plan = STATE.memberships.find(m => m.id === c.tierId);
+          return `
+            <tr class="hover:bg-stone-50 transition">
+              <td class="p-3 font-semibold text-stone-900">
+                ${c.name}
+                <span class="block text-[10px] text-stone-400 font-normal">${c.phone}</span>
+              </td>
+              <td class="p-3">
+                <span class="font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md border border-brand-100">${c.membership}</span>
+              </td>
+              <td class="p-3 font-bold text-emerald-600">${plan ? `${plan.discount}% Discount` : '-'}</td>
+              <td class="p-3 font-bold text-stone-800">₹${c.wallet.toLocaleString('en-IN')}</td>
+              <td class="p-3">
+                <button onclick="selectClientForPOS(${c.id})" class="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg text-[10px]">
+                  Select for Billing
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function billMembershipPlan(planId) {
+      const plan = STATE.memberships.find(m => m.id === planId);
+      if (!plan) return;
+
+      STATE.cart.push({
+        itemId: 'mem-' + plan.id,
+        name: `Membership: ${plan.name} (${plan.validity} Mo)`,
+        type: 'service',
+        price: plan.price,
+        qty: 1,
+        staffId: STATE.staff[0].id
+      });
+
+      switchTab('pos');
+      renderCart();
+      showAppNotification(`Added ${plan.name} to active cart!`);
+    }
+
+    function openNewPlanModal() {
+      const modal = document.getElementById('new-plan-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewPlanModal() {
+      const modal = document.getElementById('new-plan-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveNewMembershipPlan() {
+      const name = document.getElementById('plan-input-name').value.trim();
+      const price = parseFloat(document.getElementById('plan-input-price').value);
+      const discount = parseFloat(document.getElementById('plan-input-discount').value) || 0;
+      const bonus = parseFloat(document.getElementById('plan-input-bonus').value) || 0;
+      const validity = parseInt(document.getElementById('plan-input-validity').value) || 12;
+      const perks = document.getElementById('plan-input-perks').value.trim() || 'VIP Privileges';
+
+      if (!name || isNaN(price) || price <= 0) {
+        showAppNotification('Please specify Plan Name and Price.', 'error');
+        return;
+      }
+
+      STATE.memberships.push({
+        id: 'm-' + Date.now() % 1000,
+        name,
+        price,
+        discount,
+        bonus,
+        validity,
+        perks
+      });
+
+      renderMembershipsView();
+      closeNewPlanModal();
+      showAppNotification(`Plan "${name}" created successfully!`);
+    }
+
+    function renderCatalogManagementTable() {
+      const tbody = document.getElementById('catalog-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = STATE.catalog.map(item => {
+        const isProduct = item.type === 'product';
+        const isLowStock = isProduct && (item.stock < 5);
+        const stockBadge = isProduct 
+          ? `<span class="font-bold ${isLowStock ? 'text-rose-600 bg-rose-50 border border-rose-200' : 'text-stone-800 bg-stone-100'} px-2 py-0.5 rounded text-[11px]">${item.stock} in stock ${isLowStock ? '(Low)' : ''}</span>`
+          : `<span class="text-stone-500 font-medium">${item.duration || '45 min'}</span>`;
+
+        return `
+          <tr class="hover:bg-stone-50 transition">
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-stone-100 flex items-center justify-center text-xs text-stone-600">
+                  <i class="fa-solid ${item.icon || 'fa-tag'}"></i>
+                </div>
+                <span class="font-bold text-stone-900">${item.name}</span>
+              </div>
+            </td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded bg-stone-100 text-stone-600 text-[10px] font-semibold">${item.category}</span></td>
+            <td class="p-3 uppercase text-[10px] font-bold text-stone-500">${item.type}</td>
+            <td class="p-3 font-extrabold text-stone-900">₹${item.price.toLocaleString('en-IN')}</td>
+            <td class="p-3">${stockBadge}</td>
+            <td class="p-3 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                ${isProduct ? `
+                  <button onclick="openRestockModal('${item.id}')" class="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg text-[10px] transition" title="Add / Restock Units">
+                    <i class="fa-solid fa-boxes-stacked text-[9px]"></i> Restock
+                  </button>
+                ` : ''}
+                <button onclick="openEditServiceModal('${item.id}')" class="px-2 py-1 bg-stone-100 text-stone-700 hover:bg-stone-200 font-bold rounded-lg text-[10px] transition" title="Edit Service, Price or Stock">
+                  <i class="fa-solid fa-pen text-[9px]"></i> Edit
+                </button>
+                <button onclick="openDeleteServiceModal('${item.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold rounded-lg text-[10px] transition" title="Delete Service / Item">
+                  <i class="fa-solid fa-trash-can text-[9px]"></i>
+                </button>
+                <button onclick="addToCartById('${item.id}'); switchTab('pos');" class="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg text-[10px] transition" title="Add directly to active bill">
+                  + Bill
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /* Edit Service & Product Logic */
+    function openEditServiceModal(itemId) {
+      const item = STATE.catalog.find(c => c.id === itemId);
+      if (!item) return;
+
+      document.getElementById('edit-service-id').value = item.id;
+      document.getElementById('edit-service-name').value = item.name;
+      document.getElementById('edit-service-type').value = item.type;
+      document.getElementById('edit-service-category').value = item.category;
+      document.getElementById('edit-service-price').value = item.price;
+      document.getElementById('edit-service-duration').value = item.duration || '45 min';
+      document.getElementById('edit-service-stock').value = typeof item.stock === 'number' ? item.stock : 10;
+      document.getElementById('edit-service-icon').value = item.icon || 'fa-scissors';
+
+      toggleEditServiceTypeFields(item.type);
+
+      const modal = document.getElementById('edit-service-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function toggleEditServiceTypeFields(type) {
+      const durField = document.getElementById('edit-service-field-duration');
+      const stockField = document.getElementById('edit-service-field-stock');
+      const catSelect = document.getElementById('edit-service-category');
+
+      if (type === 'product') {
+        durField.classList.add('hidden');
+        stockField.classList.remove('hidden');
+        if (catSelect.value !== 'Retail') catSelect.value = 'Retail';
+      } else {
+        durField.classList.remove('hidden');
+        stockField.classList.add('hidden');
+        if (catSelect.value === 'Retail') catSelect.value = 'Hair';
+      }
+    }
+
+    function closeEditServiceModal() {
+      const modal = document.getElementById('edit-service-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveEditService() {
+      const id = document.getElementById('edit-service-id').value;
+      const name = document.getElementById('edit-service-name').value.trim();
+      const type = document.getElementById('edit-service-type').value;
+      const category = document.getElementById('edit-service-category').value;
+      const price = parseFloat(document.getElementById('edit-service-price').value);
+      const icon = document.getElementById('edit-service-icon').value;
+      const duration = document.getElementById('edit-service-duration').value.trim() || '45 min';
+      const stock = parseInt(document.getElementById('edit-service-stock').value) || 0;
+
+      if (!name || isNaN(price) || price < 0) {
+        showAppNotification('Please specify a valid item name and non-negative price.', 'error');
+        return;
+      }
+
+      const item = STATE.catalog.find(c => c.id === id);
+      if (!item) return;
+
+      item.name = name;
+      item.type = type;
+      item.category = category;
+      item.price = price;
+      item.icon = icon;
+
+      if (type === 'service') {
+        item.duration = duration;
+        delete item.stock;
+      } else {
+        item.stock = stock;
+        delete item.duration;
+      }
+
+      // Sync any active cart items if they match this item
+      STATE.cart.forEach(cartItem => {
+        if (cartItem.itemId === id) {
+          cartItem.name = name;
+          cartItem.type = type;
+        }
+      });
+
+      renderCatalog();
+      renderCatalogManagementTable();
+      renderCart();
+      closeEditServiceModal();
+      showAppNotification(`Updated "${name}" (₹${price.toLocaleString('en-IN')}) successfully!`);
+    }
+
+    /* Delete Service & Product Logic */
+    function openDeleteServiceModal(itemId) {
+      const item = STATE.catalog.find(c => c.id === itemId);
+      if (!item) return;
+
+      document.getElementById('delete-service-target-id').value = item.id;
+      document.getElementById('delete-service-name-label').innerText = item.name;
+      document.getElementById('delete-service-price-label').innerText = `₹${item.price.toLocaleString('en-IN')}`;
+
+      const modal = document.getElementById('delete-service-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeDeleteServiceModal() {
+      const modal = document.getElementById('delete-service-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function executeDeleteService() {
+      const id = document.getElementById('delete-service-target-id').value;
+      const itemIndex = STATE.catalog.findIndex(c => c.id === id);
+
+      if (itemIndex === -1) return;
+
+      const deletedName = STATE.catalog[itemIndex].name;
+      STATE.catalog.splice(itemIndex, 1);
+
+      // Clean up from active cart if it was added
+      STATE.cart = STATE.cart.filter(cartItem => cartItem.itemId !== id);
+
+      renderCatalog();
+      renderCatalogManagementTable();
+      renderCart();
+      closeDeleteServiceModal();
+      showAppNotification(`Removed "${deletedName}" from services catalog.`);
+    }
+
+    /* Restock Inventory Handlers */
+    function openRestockModal(preselectedId = null) {
+      const productSelect = document.getElementById('restock-select-product');
+      const products = STATE.catalog.filter(c => c.type === 'product');
+
+      if (!productSelect || products.length === 0) {
+        showAppNotification('No retail products available to restock. Add one first!', 'error');
+        return;
+      }
+
+      productSelect.innerHTML = products.map(p => `
+        <option value="${p.id}" ${preselectedId === p.id ? 'selected' : ''}>
+          ${p.name} (Current: ${p.stock})
+        </option>
+      `).join('');
+
+      const targetId = preselectedId || products[0].id;
+      onRestockProductChange(targetId);
+      document.getElementById('restock-add-qty').value = '10';
+      document.getElementById('restock-note').value = '';
+
+      const modal = document.getElementById('restock-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function onRestockProductChange(productId) {
+      const product = STATE.catalog.find(p => p.id === productId);
+      const countEl = document.getElementById('restock-current-count');
+      if (product && countEl) {
+        countEl.innerText = `${product.stock} Units`;
+      }
+    }
+
+    function closeRestockModal() {
+      const modal = document.getElementById('restock-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveRestockQuantity() {
+      const productId = document.getElementById('restock-select-product').value;
+      const addQty = parseInt(document.getElementById('restock-add-qty').value);
+      const note = document.getElementById('restock-note').value.trim();
+
+      if (isNaN(addQty) || addQty <= 0) {
+        showAppNotification('Please specify a positive quantity of units to add.', 'error');
+        return;
+      }
+
+      const product = STATE.catalog.find(p => p.id === productId);
+      if (!product) return;
+
+      product.stock = (product.stock || 0) + addQty;
+
+      renderCatalog();
+      renderCatalogManagementTable();
+      closeRestockModal();
+      showAppNotification(`Successfully added ${addQty} units to "${product.name}". New Stock: ${product.stock}`);
+    }
+
+    /* Edit Employee Salary & Commission Rates */
+    function openEditSalaryModal(staffId) {
+      const s = STATE.staff.find(emp => emp.id === staffId);
+      if (!s) return;
+
+      document.getElementById('edit-salary-staff-id').value = s.id;
+      document.getElementById('edit-salary-staff-title').innerText = `${s.name} (${s.role})`;
+      document.getElementById('edit-input-salary').value = s.baseSalary || 20000;
+      document.getElementById('edit-input-salarytype').value = s.salaryType || 'Monthly';
+      document.getElementById('edit-input-servicecomm').value = Math.round(s.serviceComm * 100);
+      document.getElementById('edit-input-retailcomm').value = Math.round(s.retailComm * 100);
+
+      const modal = document.getElementById('edit-salary-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeEditSalaryModal() {
+      const modal = document.getElementById('edit-salary-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveSalaryCommissionChanges() {
+      const staffId = parseInt(document.getElementById('edit-salary-staff-id').value);
+      const salary = parseFloat(document.getElementById('edit-input-salary').value) || 0;
+      const salaryType = document.getElementById('edit-input-salarytype').value;
+      const serviceComm = (parseFloat(document.getElementById('edit-input-servicecomm').value) || 0) / 100;
+      const retailComm = (parseFloat(document.getElementById('edit-input-retailcomm').value) || 0) / 100;
+
+      const emp = STATE.staff.find(s => s.id === staffId);
+      if (emp) {
+        emp.baseSalary = salary;
+        emp.salaryType = salaryType;
+        emp.serviceComm = serviceComm;
+        emp.retailComm = retailComm;
+
+        renderStaffDirectory();
+        renderStaffCommissions();
+        closeEditSalaryModal();
+        showAppNotification(`Updated salary & commission rates for ${emp.name}!`);
+      }
+    }
+
+    function renderAppointments() {
+      const container = document.getElementById('appointments-grid');
+      if (!container) return;
+
+      container.innerHTML = STATE.appointments.map(apt => `
+        <div class="bg-white border border-stone-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                apt.status === 'In Chair' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              }">${apt.status}</span>
+              <span class="text-xs font-bold text-stone-500"><i class="fa-regular fa-clock text-[10px]"></i> ${apt.time}</span>
+            </div>
+            <h4 class="font-bold text-stone-900 text-sm leading-tight">${apt.clientName}</h4>
+            <p class="text-xs text-stone-500 mb-3">${apt.service}</p>
+            <div class="bg-stone-50 rounded-xl p-2 text-xs space-y-1 text-stone-600 border border-stone-200 mb-3">
+              <div class="flex justify-between"><span>Stylist:</span><b class="text-stone-800">${apt.stylist}</b></div>
+              <div class="flex justify-between"><span>Chair/Station:</span><b class="text-stone-800">${apt.chair}</b></div>
+            </div>
+          </div>
+          <button onclick="sendAppointmentToBilling('${apt.id}')" class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition">
+            <i class="fa-solid fa-cash-register"></i> Send to POS Checkout
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function sendAppointmentToBilling(aptId) {
+      const apt = STATE.appointments.find(a => a.id === aptId);
+      if (!apt) return;
+
+      const client = STATE.clients.find(c => c.name.toLowerCase() === apt.clientName.toLowerCase());
+      if (client) {
+        STATE.selectedClientId = client.id;
+        populateClientSelect();
+      }
+
+      const service = STATE.catalog.find(s => s.name.toLowerCase() === apt.service.toLowerCase());
+      if (service) {
+        addToCart(service);
+      } else {
+        STATE.cart.push({
+          itemId: 'apt-' + Date.now(),
+          name: apt.service,
+          type: 'service',
+          price: 1200,
+          qty: 1,
+          staffId: STATE.staff[0].id
+        });
+      }
+
+      switchTab('pos');
+      showAppNotification(`Appointment for ${apt.clientName} transferred to register!`);
+    }
+
+    function openNewAppointmentModal() {
+      const staffSelect = document.getElementById('apt-input-staff');
+      const serviceSelect = document.getElementById('apt-input-service');
+
+      if (staffSelect) {
+        staffSelect.innerHTML = STATE.staff.map(s => `<option value="${s.name}">${s.name} (${s.role.split(' ')[0]})</option>`).join('');
+      }
+      if (serviceSelect) {
+        serviceSelect.innerHTML = STATE.catalog.filter(c => c.type === 'service').map(s => `<option value="${s.name}">${s.name} (₹${s.price})</option>`).join('');
+      }
+
+      const modal = document.getElementById('new-appointment-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewAppointmentModal() {
+      const modal = document.getElementById('new-appointment-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveNewAppointment() {
+      const clientId = parseInt(document.getElementById('apt-input-client').value);
+      const client = STATE.clients.find(c => c.id === clientId) || STATE.clients[0];
+      const stylist = document.getElementById('apt-input-staff').value;
+      const service = document.getElementById('apt-input-service').value;
+      const time = document.getElementById('apt-input-time').value.trim() || 'Now';
+      const chair = document.getElementById('apt-input-chair').value.trim() || 'Chair 1';
+
+      STATE.appointments.unshift({
+        id: 'apt-' + Date.now() % 1000,
+        clientName: client.name,
+        phone: client.phone,
+        stylist,
+        service,
+        time,
+        status: 'Waiting',
+        chair
+      });
+
+      renderAppointments();
+      closeNewAppointmentModal();
+      showAppNotification(`Booked ${service} for ${client.name}!`);
+    }
+
+    function renderClientsList() {
+      const tbody = document.getElementById('clients-table-body');
+      const query = (document.getElementById('client-search-input')?.value || '').toLowerCase().trim();
+      if (!tbody) return;
+
+      const filtered = STATE.clients.filter(c => 
+        c.name.toLowerCase().includes(query) || 
+        c.phone.includes(query) || 
+        c.membership.toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-stone-400">No matching clients found</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(c => `
+        <tr class="hover:bg-stone-50 transition">
+          <td class="p-3">
+            <span class="font-bold text-stone-900 block">${c.name}</span>
+            <span class="text-[10px] text-stone-400 font-medium">${c.phone}</span>
+          </td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              c.tierId ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-500'
+            }">${c.membership}</span>
+          </td>
+          <td class="p-3 font-extrabold text-stone-800">₹${c.wallet.toLocaleString('en-IN')}</td>
+          <td class="p-3 text-stone-600 max-w-xs truncate" title="${c.formula}">
+            <span class="font-mono text-[10px] bg-stone-100 px-1.5 py-0.5 rounded">${c.formula}</span>
+          </td>
+          <td class="p-3 font-semibold text-stone-700">${c.visits} Visits</td>
+          <td class="p-3 text-right">
+            <button onclick="selectClientForPOS(${c.id})" class="px-3 py-1 bg-stone-900 hover:bg-black text-white text-[11px] font-bold rounded-lg transition">
+              Bill Client
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function selectClientForPOS(clientId) {
+      STATE.selectedClientId = clientId;
+      populateClientSelect();
+      switchTab('pos');
+      showAppNotification('Client selected for active checkout');
+    }
+
+    function switchStaffSubTab(subTab) {
+      const dirBtn = document.getElementById('subtab-staff-dir');
+      const commBtn = document.getElementById('subtab-staff-comm');
+      const dirView = document.getElementById('staff-directory-view');
+      const commView = document.getElementById('staff-commissions-view');
+
+      if (subTab === 'directory') {
+        dirBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white transition';
+        commBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-600 border border-stone-200 hover:bg-stone-50 transition';
+        dirView.classList.remove('hidden');
+        commView.classList.add('hidden');
+        renderStaffDirectory();
+      } else {
+        commBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white transition';
+        dirBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-600 border border-stone-200 hover:bg-stone-50 transition';
+        commView.classList.remove('hidden');
+        dirView.classList.add('hidden');
+        renderStaffCommissions();
+      }
+    }
+
+    function renderStaffDirectory() {
+      const grid = document.getElementById('staff-directory-grid');
+      if (!grid) return;
+
+      grid.innerHTML = STATE.staff.map(s => {
+        const cleanWa = (s.whatsapp || s.phone || '').replace(/[^0-9]/g, '');
+        const waLink = cleanWa ? `https://wa.me/${cleanWa}` : '#';
+        const maskedAadhaar = s.aadhaar ? s.aadhaar.replace(/\d(?=\d{4})/g, "•") : 'Not Provided';
+
+        return `
+          <div class="bg-white border border-stone-200 hover:border-brand-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition">
+            <div>
+              <!-- Header with Avatar & Role -->
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 font-bold flex items-center justify-center text-sm border border-brand-100">
+                    ${s.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-stone-900 text-sm leading-tight">${s.name}</h4>
+                    <span class="inline-block text-[10px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mt-0.5 border border-brand-100">
+                      ${s.role}
+                    </span>
+                  </div>
+                </div>
+                <button onclick="viewEmployeeDetails(${s.id})" class="text-stone-400 hover:text-brand-600 p-1 transition" title="View Full KYC & Bank Details">
+                  <i class="fa-solid fa-address-card text-base"></i>
+                </button>
+              </div>
+
+              <!-- Contact Numbers -->
+              <div class="bg-stone-50 rounded-xl p-2.5 space-y-1.5 text-xs text-stone-600 border border-stone-200/80 mb-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-stone-500"><i class="fa-solid fa-phone text-[10px] w-4 text-center"></i> Phone:</span>
+                  <a href="tel:${s.phone}" class="font-semibold text-stone-800 hover:text-brand-600">${s.phone}</a>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-stone-500"><i class="fa-brands fa-whatsapp text-emerald-600 text-xs w-4 text-center"></i> WhatsApp:</span>
+                  <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="font-semibold text-emerald-700 hover:underline flex items-center gap-1">
+                    <span>${s.whatsapp}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Salary & Commission Highlight -->
+              <div class="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2.5 text-xs space-y-1 mb-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-amber-900 font-semibold">Base Pay:</span>
+                  <span class="font-bold text-stone-900">₹${(s.baseSalary || 0).toLocaleString('en-IN')} <span class="text-[9px] text-stone-500 font-normal">(${s.salaryType || 'Monthly'})</span></span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-stone-600">
+                  <span>Commission Rates:</span>
+                  <span class="font-bold text-amber-800">${Math.round(s.serviceComm * 100)}% Serv. / ${Math.round(s.retailComm * 100)}% Ret.</span>
+                </div>
+              </div>
+
+              <!-- KYC Badges -->
+              <div class="space-y-1.5 text-xs mb-3">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="text-stone-500 font-medium">Aadhaar Card:</span>
+                  <span class="font-mono font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded">${maskedAadhaar}</span>
+                </div>
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="text-stone-500 font-medium">PAN Card:</span>
+                  <span class="font-mono font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded">${s.pan || 'N/A'}</span>
+                </div>
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="text-stone-500 font-medium">Bank Account:</span>
+                  <span class="text-stone-700 font-semibold truncate max-w-[170px]" title="${s.bankName} - ${s.accountNo}">${s.bankName || 'Not Added'}</span>
+                </div>
+              </div>
+
+              <!-- Address Preview -->
+              <div class="text-[11px] text-stone-500 border-t border-stone-100 pt-2 mb-3">
+                <p class="truncate" title="${s.address || 'No address logged'}">
+                  <i class="fa-solid fa-location-dot text-stone-400 mr-1"></i> ${s.address || 'Address not registered'}
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div class="pt-2 border-t border-stone-100 flex gap-2">
+              <button onclick="openEditSalaryModal(${s.id})" class="py-1.5 px-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1" title="Adjust Salary & Comm">
+                <i class="fa-solid fa-pen text-[10px]"></i> Rates
+              </button>
+              <button onclick="viewEmployeeDetails(${s.id})" class="flex-1 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1">
+                <i class="fa-solid fa-file-lines text-[10px]"></i> View KYC
+              </button>
+              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1">
+                <i class="fa-brands fa-whatsapp text-sm"></i>
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openNewEmployeeModal() {
+      document.getElementById('emp-input-name').value = '';
+      document.getElementById('emp-input-role').value = 'Master Stylist';
+      document.getElementById('emp-input-phone').value = '';
+      document.getElementById('emp-input-whatsapp').value = '';
+      document.getElementById('emp-input-aadhaar').value = '';
+      document.getElementById('emp-input-pan').value = '';
+      document.getElementById('emp-input-address').value = '';
+      document.getElementById('emp-input-bank').value = '';
+      document.getElementById('emp-input-account').value = '';
+      document.getElementById('emp-input-ifsc').value = '';
+      document.getElementById('emp-input-salary').value = '25000';
+      document.getElementById('emp-input-salarytype').value = 'Monthly';
+      document.getElementById('emp-input-servicecomm').value = '30';
+      document.getElementById('emp-input-retailcomm').value = '10';
+
+      const modal = document.getElementById('new-employee-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeNewEmployeeModal() {
+      const modal = document.getElementById('new-employee-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyPhoneToWhatsapp() {
+      const phone = document.getElementById('emp-input-phone').value;
+      document.getElementById('emp-input-whatsapp').value = phone;
+    }
+
+    function formatAadhaarInput(input) {
+      let val = input.value.replace(/\D/g, '');
+      if (val.length > 12) val = val.substring(0, 12);
+      let formatted = '';
+      for (let i = 0; i < val.length; i++) {
+        if (i > 0 && i % 4 === 0) formatted += ' ';
+        formatted += val[i];
+      }
+      input.value = formatted;
+    }
+
+    function saveNewEmployee() {
+      const name = document.getElementById('emp-input-name').value.trim();
+      const role = document.getElementById('emp-input-role').value;
+      const phone = document.getElementById('emp-input-phone').value.trim();
+      const whatsapp = document.getElementById('emp-input-whatsapp').value.trim() || phone;
+      const aadhaar = document.getElementById('emp-input-aadhaar').value.trim();
+      const pan = document.getElementById('emp-input-pan').value.trim().toUpperCase();
+      const address = document.getElementById('emp-input-address').value.trim();
+      const bankName = document.getElementById('emp-input-bank').value.trim();
+      const accountNo = document.getElementById('emp-input-account').value.trim();
+      const ifsc = document.getElementById('emp-input-ifsc').value.trim().toUpperCase();
+      const baseSalary = parseFloat(document.getElementById('emp-input-salary').value) || 0;
+      const salaryType = document.getElementById('emp-input-salarytype').value;
+      const serviceComm = (parseFloat(document.getElementById('emp-input-servicecomm').value) || 30) / 100;
+      const retailComm = (parseFloat(document.getElementById('emp-input-retailcomm').value) || 10) / 100;
+
+      if (!name || !phone) {
+        showAppNotification('Please enter Employee Name and Phone Number.', 'error');
+        return;
+      }
+
+      const newEmp = {
+        id: Date.now() % 10000,
+        name,
+        role,
+        phone,
+        whatsapp,
+        aadhaar: aadhaar || 'Not Provided',
+        pan: pan || 'Not Provided',
+        address: address || 'Not Registered',
+        bankName: bankName || 'Not Specified',
+        accountNo: accountNo || 'N/A',
+        ifsc: ifsc || 'N/A',
+        baseSalary,
+        salaryType,
+        serviceComm,
+        retailComm,
+        servicesDone: 0,
+        salesTotal: 0
+      };
+
+      STATE.staff.push(newEmp);
+      renderStaffDirectory();
+      renderStaffCommissions();
+      closeNewEmployeeModal();
+      showAppNotification(`Employee "${name}" (${role}) registered with ₹${baseSalary.toLocaleString('en-IN')} base salary!`);
+    }
+
+    function viewEmployeeDetails(staffId) {
+      const s = STATE.staff.find(emp => emp.id === staffId);
+      if (!s) return;
+
+      const container = document.getElementById('view-employee-content');
+      const cleanWa = (s.whatsapp || s.phone || '').replace(/[^0-9]/g, '');
+      const waLink = cleanWa ? `https://wa.me/${cleanWa}` : '#';
+
+      container.innerHTML = `
+        <div class="bg-stone-50 border border-stone-200 rounded-xl p-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-brand-100 text-brand-800 font-bold text-base flex items-center justify-center border border-brand-200">
+              ${s.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <div>
+              <h4 class="font-bold text-stone-900 text-sm">${s.name}</h4>
+              <span class="text-[11px] font-semibold text-brand-700 bg-white px-2 py-0.5 rounded border border-brand-200">${s.role}</span>
+            </div>
+          </div>
+          <button onclick="closeViewEmployeeModal(); openEditSalaryModal(${s.id});" class="px-2.5 py-1 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-lg shadow-2xs">
+            <i class="fa-solid fa-pen text-[10px]"></i> Edit Salary
+          </button>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <h5 class="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Salary & Commission Compensation</h5>
+          <div class="bg-amber-50/50 border border-amber-200 p-2.5 rounded-lg space-y-1">
+            <div class="flex justify-between"><span>Base Salary:</span><b class="text-stone-800">₹${(s.baseSalary || 0).toLocaleString('en-IN')} (${s.salaryType || 'Monthly'})</b></div>
+            <div class="flex justify-between"><span>Service Commission Rate:</span><b class="text-stone-800">${Math.round(s.serviceComm * 100)}%</b></div>
+            <div class="flex justify-between"><span>Retail Product Comm. Rate:</span><b class="text-stone-800">${Math.round(s.retailComm * 100)}%</b></div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <h5 class="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Contact Channels</h5>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-white border border-stone-200 p-2 rounded-lg">
+              <span class="block text-stone-400 text-[10px]">Mobile Phone</span>
+              <a href="tel:${s.phone}" class="font-semibold text-stone-800 hover:text-brand-600 text-xs">${s.phone}</a>
+            </div>
+            <div class="bg-white border border-stone-200 p-2 rounded-lg">
+              <span class="block text-stone-400 text-[10px]">WhatsApp</span>
+              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="font-semibold text-emerald-700 hover:underline text-xs flex items-center gap-1">
+                <i class="fa-brands fa-whatsapp"></i> ${s.whatsapp}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <h5 class="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Government Documents & Identification</h5>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-white border border-stone-200 p-2 rounded-lg">
+              <span class="block text-stone-400 text-[10px]">Aadhaar Card UIDAI</span>
+              <span class="font-mono font-bold text-stone-900 text-xs">${s.aadhaar || 'N/A'}</span>
+            </div>
+            <div class="bg-white border border-stone-200 p-2 rounded-lg">
+              <span class="block text-stone-400 text-[10px]">Income Tax PAN</span>
+              <span class="font-mono font-bold text-stone-900 text-xs">${s.pan || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <h5 class="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Bank Account Details (Disbursement)</h5>
+          <div class="bg-white border border-stone-200 p-2.5 rounded-lg space-y-1">
+            <div class="flex justify-between"><span>Bank Name:</span><b class="text-stone-800">${s.bankName || 'Not Set'}</b></div>
+            <div class="flex justify-between"><span>Account No:</span><b class="font-mono text-stone-800">${s.accountNo || 'N/A'}</b></div>
+            <div class="flex justify-between"><span>IFSC Code:</span><b class="font-mono text-stone-800">${s.ifsc || 'N/A'}</b></div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <h5 class="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Present Residential Address</h5>
+          <div class="bg-white border border-stone-200 p-2.5 rounded-lg">
+            <p class="text-stone-700 leading-relaxed font-medium">${s.address || 'Address not registered'}</p>
+          </div>
+        </div>
+      `;
+
+      const modal = document.getElementById('view-employee-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeViewEmployeeModal() {
+      const modal = document.getElementById('view-employee-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderStaffCommissions() {
+      const summaryCards = document.getElementById('staff-summary-cards');
+      const tableBody = document.getElementById('staff-comm-table-body');
+
+      if (summaryCards) {
+        summaryCards.innerHTML = STATE.staff.map(s => {
+          const estimatedComm = Math.round(s.salesTotal * s.serviceComm);
+          const totalEstimatedPayout = (s.baseSalary || 0) + estimatedComm;
+
+          return `
+            <div class="bg-white border border-stone-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-stone-900 text-xs">${s.name}</span>
+                  <span class="text-[10px] font-semibold text-stone-500">${s.role}</span>
+                </div>
+                <div class="space-y-1 text-xs text-stone-600">
+                  <div class="flex justify-between"><span>Base Salary:</span><b class="text-stone-800">₹${(s.baseSalary || 0).toLocaleString('en-IN')}</b></div>
+                  <div class="flex justify-between"><span>Billed Services:</span><b class="text-stone-800">${s.servicesDone}</b></div>
+                  <div class="flex justify-between"><span>Comm. Earned:</span><b class="text-emerald-600">₹${estimatedComm.toLocaleString('en-IN')}</b></div>
+                </div>
+              </div>
+              <div class="pt-2 mt-2 border-t border-stone-100 flex items-center justify-between">
+                <span class="text-[11px] font-bold text-stone-700">Total Payout:</span>
+                <span class="text-xs font-black text-brand-700">₹${totalEstimatedPayout.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (tableBody) {
+        tableBody.innerHTML = STATE.staff.map(s => {
+          const commEarned = Math.round(s.salesTotal * s.serviceComm);
+          const totalPayout = (s.baseSalary || 0) + commEarned;
+
+          return `
+            <tr class="hover:bg-stone-50 transition">
+              <td class="p-3 font-semibold text-stone-900">
+                ${s.name} <span class="text-stone-400 text-[10px]">(${s.role})</span>
+              </td>
+              <td class="p-3 font-semibold text-stone-700">
+                ₹${(s.baseSalary || 0).toLocaleString('en-IN')} <span class="text-[10px] text-stone-400">(${s.salaryType || 'Monthly'})</span>
+              </td>
+              <td class="p-3 font-bold text-stone-800">₹${s.salesTotal.toLocaleString('en-IN')}</td>
+              <td class="p-3 font-semibold text-emerald-600">₹${commEarned.toLocaleString('en-IN')} (${Math.round(s.serviceComm * 100)}%)</td>
+              <td class="p-3 font-extrabold text-brand-700 text-right">₹${totalPayout.toLocaleString('en-IN')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function completeCheckout() {
+      if (STATE.cart.length === 0) {
+        showAppNotification('Cart is empty. Add services first.', 'error');
+        return;
+      }
+
+      const client = STATE.clients.find(c => c.id === STATE.selectedClientId) || STATE.clients[0];
+      const totals = calculateCartTotals();
+      const invoiceNo = 'INV-' + Math.floor(100000 + Math.random() * 900000);
+      const dateStr = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+      // Deduct from wallet if wallet payment mode selected
+      if (STATE.paymentMethod === 'wallet') {
+        if (client.wallet < totals.grandTotal) {
+          showAppNotification(`Insufficient wallet balance (₹${client.wallet}). Select UPI or Card.`, 'error');
+          return;
+        }
+        client.wallet -= totals.grandTotal;
+      }
+
+      // Deduct retail product inventory & credit commissions
+      STATE.cart.forEach(item => {
+        // Stock decrement for retail products
+        if (item.type === 'product') {
+          const product = STATE.catalog.find(p => p.id === item.itemId);
+          if (product && typeof product.stock === 'number') {
+            product.stock = Math.max(0, product.stock - item.qty);
+          }
+          // Allocate to Retail Product sales in P&L ledger
+          STATE.productSalesTotal = (STATE.productSalesTotal || 0) + (item.price * item.qty);
+        } else {
+          // Allocate to Service sales in P&L ledger
+          STATE.serviceSalesTotal = (STATE.serviceSalesTotal || 0) + (item.price * item.qty);
+        }
+
+        // Record stylist commission credit
+        const stylist = STATE.staff.find(s => s.id === item.staffId);
+        if (stylist) {
+          stylist.servicesDone += item.qty;
+          stylist.salesTotal += (item.price * item.qty);
+        }
+      });
+
+      // Update today's dashboard totals
+      STATE.todaySales += totals.grandTotal;
+      STATE.todayBillsCount += 1;
+      document.getElementById('sidebar-today-sales').innerText = `₹${Math.round(STATE.todaySales).toLocaleString('en-IN')}`;
+      document.getElementById('sidebar-today-bills').innerText = STATE.todayBillsCount;
+
+      client.visits += 1;
+
+      // Re-render catalog and financials to reflect inventory and revenue increments
+      renderCatalog();
+      renderCatalogManagementTable();
+      renderStaffCommissions();
+
+      // Prepare Thermal Receipt Layout
+      const receiptContainer = document.getElementById('thermal-receipt-container');
+      if (receiptContainer) {
+        receiptContainer.innerHTML = `
+          <div class="text-center pb-2 border-b border-dashed border-stone-400">
+            <h2 class="font-bold text-sm uppercase tracking-wider">${STATE.shopProfile.name}</h2>
+            <p class="text-[10px] text-stone-600">${STATE.shopProfile.branch}</p>
+            <p class="text-[9px] text-stone-500">${STATE.shopProfile.address}</p>
+            <p class="text-[9px] text-stone-500">Tel: ${STATE.shopProfile.phone} | GST: ${STATE.shopProfile.gstin}</p>
+            ${STATE.shopProfile.tagline ? `<p class="text-[9px] italic text-stone-500 mt-0.5">"${STATE.shopProfile.tagline}"</p>` : ''}
+          </div>
+
+          <div class="py-2 border-b border-dashed border-stone-400 text-[10px] space-y-0.5">
+            <div class="flex justify-between"><span>Invoice: <b>${invoiceNo}</b></span><span>Date: ${dateStr}</span></div>
+            <div class="flex justify-between"><span>Client: <b>${client.name}</b></span><span>Tier: <b>${client.membership}</b></span></div>
+            <div><span>Payment Mode: <b class="uppercase">${STATE.paymentMethod}</b></span></div>
+          </div>
+
+          <div class="py-2 border-b border-dashed border-stone-400">
+            <table class="w-full text-left text-[10px]">
+              <thead>
+                <tr class="border-b border-stone-300">
+                  <th class="py-1">Item</th>
+                  <th class="py-1 text-center">Qty</th>
+                  <th class="py-1 text-right">Price</th>
+                  <th class="py-1 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${STATE.cart.map(i => {
+                  const st = STATE.staff.find(s => s.id === i.staffId);
+                  return `
+                    <tr>
+                      <td class="py-1">
+                        <div>${i.name}</div>
+                        <div class="text-[8px] text-stone-500">By: ${st ? st.name.split(' ')[0] : 'Stylist'}</div>
+                      </td>
+                      <td class="py-1 text-center">${i.qty}</td>
+                      <td class="py-1 text-right">₹${i.price}</td>
+                      <td class="py-1 text-right font-bold">₹${i.price * i.qty}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="py-2 border-b border-dashed border-stone-400 text-[10px] space-y-1">
+            <div class="flex justify-between"><span>Subtotal:</span><span>₹${totals.subtotal.toLocaleString('en-IN')}</span></div>
+            ${totals.discount > 0 ? `<div class="flex justify-between text-emerald-700"><span>Discount Savings:</span><span>-₹${Math.round(totals.discount).toLocaleString('en-IN')}</span></div>` : ''}
+            <div class="flex justify-between"><span>GST (${totals.taxRate}%):</span><span>₹${Math.round(totals.tax).toLocaleString('en-IN')}</span></div>
+            ${totals.tip > 0 ? `<div class="flex justify-between"><span>Stylist Gratuity:</span><span>₹${totals.tip}</span></div>` : ''}
+            <div class="flex justify-between font-black text-xs pt-1 border-t border-stone-400">
+              <span>NET AMOUNT PAID:</span>
+              <span>₹${Math.round(totals.grandTotal).toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          <div class="pt-3 text-center text-[9px] text-stone-500 space-y-1">
+            <p class="font-bold text-stone-700">UPI / Digital Payment Accepted</p>
+            <p class="font-mono">${STATE.shopProfile.upi || 'payment@upi'}</p>
+            <p>Thank you for visiting ${STATE.shopProfile.name}!</p>
+            <p class="italic">Please retain this receipt for tax & warranty purposes.</p>
+          </div>
+        `;
+      }
+
+      // Open printable receipt modal
+      const modal = document.getElementById('receipt-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      // Clear register cart
+      STATE.cart = [];
+      renderCart();
+      showAppNotification(`Invoice ${invoiceNo} settled successfully!`);
+    }
+
+    function closeReceiptModal() {
+      const modal = document.getElementById('receipt-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    window.onload = function() {
+      startLiveClock();
+      populateClientSelect();
+      renderCatalog();
+      renderCart();
+      renderMembershipsView();
+      renderCatalogManagementTable();
+      renderAppointments();
+      renderClientsList();
+      renderStaffDirectory();
+      renderStaffCommissions();
+      renderPnLView();
+    };
+  </script>
+</body>
+</html>

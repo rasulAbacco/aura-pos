@@ -1,0 +1,48 @@
+{
+  "name": "@aura/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch-path=src --watch-preserve-output src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "node prisma/seed.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "start:prod": "cross-env SERVE_CLIENT=true node src/server.js",
+    "db:migrate:fallback": "node scripts/migrate.js",
+    "jobs": "node src/jobs/index.js",
+    "setup": "node scripts/setup.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "2.2.2",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.6",
+    "cross-env": "7.0.3",
+    "decimal.js": "10.6.0",
+    "dotenv": "18.0.9",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
+    "helmet": "8.3.0",
+    "jsonwebtoken": "9.0.3",
+    "nodemailer": "7.0.13",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "prisma": "7.10.1",
+    "supertest": "7.3.1",
+    "vitest": "4.1.12"
+  }
+}

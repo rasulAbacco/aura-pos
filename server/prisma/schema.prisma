@@ -1,0 +1,939 @@
+// Aura POS — multi-tenant Salon & Spa POS
+// Conventions:
+//  * Every tenant-owned model has `tenantId` and an index starting with it.
+//  * Money is Decimal(14,2); rates are Decimal(6,3) percentages (18.000 = 18 %).
+//  * Financial records are never cascade-deleted (onDelete: Restrict is Prisma's default for required relations).
+//  * Catalogue/customers/staff use `archivedAt` (soft delete) so history stays intact.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Platform ─────────────────────────────
+
+model PlatformAdmin {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String
+  passwordHash String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+model SubscriptionPlan {
+  id            String          @id @default(uuid()) @db.Uuid
+  code          String          @unique
+  name          String
+  description   String?
+  interval      BillingInterval
+  price         Decimal         @db.Decimal(14, 2) // INR, GST-inclusive display price is computed separately
+  currency      String          @default("INR")
+  trialDays     Int             @default(0)
+  graceDays     Int             @default(3)
+  maxStaff      Int             @default(5)
+  maxBranches   Int             @default(1)
+  features      String[]        @default([]) // e.g. ["pos","appointments","inventory","payroll","reports.advanced","multibranch","online_booking"]
+  isActive      Boolean         @default(true)
+  isPublic      Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  subscriptions Subscription[]
+  payments      PaymentTransaction[]
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model Tenant {
+  id               String       @id @default(uuid()) @db.Uuid
+  slug             String       @unique
+  legalName        String
+  displayName      String
+  tagline          String?
+  gstin            String?
+  stateCode        String?      // 2-digit GST state code, drives CGST/SGST vs IGST
+  pricesIncludeTax Boolean      @default(false)
+  roundOffInvoice  Boolean      @default(true)
+  currency         String       @default("INR")
+  locale           String       @default("en-IN")
+  timezone         String       @default("Asia/Kolkata")
+  logoFileId       String?      @db.Uuid
+  status           TenantStatus @default(ACTIVE)
+  suspendedReason  String?
+  suspendedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  users               User[]
+  branches            Branch[]
+  subscriptions       Subscription[]
+  payments            PaymentTransaction[]
+  categories          Category[]
+  catalogItems        CatalogItem[]
+  customers           Customer[]
+  membershipPlans     MembershipPlan[]
+  memberships         CustomerMembership[]
+  walletEntries       WalletEntry[]
+  staff               StaffProfile[]
+  appointments        Appointment[]
+  invoices            Invoice[]
+  invoicePayments     InvoicePayment[]
+  stockLevels         StockLevel[]
+  stockMovements      StockMovement[]
+  commissionEntries   CommissionEntry[]
+  expenses            Expense[]
+  auditLogs           AuditLog[]
+  coupons             Coupon[]
+  suppliers           Supplier[]
+  payrollRuns         PayrollRun[]
+  patchTests          PatchTest[]
+  parkedCarts         ParkedCart[]
+  cashShifts          CashShift[]
+  notifications       Notification[]
+  files               StoredFile[]
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  tenantId           String             @db.Uuid
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  planId             String             @db.Uuid
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  cancelledAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  events             SubscriptionEvent[]
+
+  @@index([tenantId, currentPeriodEnd])
+}
+
+model SubscriptionEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  subscriptionId String       @db.Uuid
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  type           String       // CREATED, ACTIVATED, RENEWED, PLAN_CHANGED, CANCELLED, EXPIRED, PAYMENT_FAILED
+  fromStatus     String?
+  toStatus       String?
+  detail         Json?
+  actor          String?      // "user:<id>" | "platform:<id>" | "system" | "webhook"
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+enum PaymentTxStatus {
+  CREATED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+model PaymentTransaction {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @db.Uuid
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+  planId            String           @db.Uuid
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  provider          String           @default("razorpay")
+  providerOrderId   String           @unique
+  providerPaymentId String?          @unique
+  amount            Decimal          @db.Decimal(14, 2)
+  amountPaise       Int
+  currency          String           @default("INR")
+  status            PaymentTxStatus  @default(CREATED)
+  failureReason     String?
+  appliedAt         DateTime?        // when subscription was extended from this payment (idempotency marker)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([tenantId, createdAt])
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String
+  eventId     String
+  eventType   String
+  payload     Json
+  status      String    @default("RECEIVED") // RECEIVED, PROCESSED, FAILED, IGNORED
+  error       String?
+  attempts    Int       @default(0)
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([status, receivedAt])
+}
+
+model ContactSubmission {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  consent   Boolean  @default(false)
+  status    String   @default("NEW") // NEW, IN_PROGRESS, CLOSED, SPAM
+  ipHash    String?
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
+// ───────────────────────────── Tenant identity ─────────────────────────────
+
+enum Role {
+  OWNER
+  MANAGER
+  RECEPTIONIST
+  STYLIST
+  INVENTORY_MANAGER
+  ACCOUNTANT
+}
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.Uuid
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  email             String
+  name              String
+  phone             String?
+  passwordHash      String?
+  role              Role
+  permissionGrants  String[]  @default([])
+  permissionRevokes String[]  @default([])
+  allBranches       Boolean   @default(false)
+  branchIds         String[]  @default([]) @db.Uuid
+  isActive          Boolean   @default(true)
+  emailVerifiedAt   DateTime?
+  termsAcceptedAt   DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  staffProfile      StaffProfile?
+
+  @@unique([email]) // one login identity per email across the platform
+  @@index([tenantId])
+}
+
+model Session {
+  id            String    @id @default(uuid()) @db.Uuid
+  principalType String    // "user" | "platform"
+  principalId   String    @db.Uuid
+  tenantId      String?   @db.Uuid
+  tokenHash     String    @unique
+  familyId      String    @db.Uuid
+  replacedById  String?   @db.Uuid
+  revokedAt     DateTime?
+  revokeReason  String?
+  expiresAt     DateTime
+  userAgent     String?
+  ipHash        String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime  @default(now())
+
+  @@index([principalType, principalId])
+  @@index([familyId])
+}
+
+model OneTimeToken {
+  id            String    @id @default(uuid()) @db.Uuid
+  purpose       String    // EMAIL_VERIFY | PASSWORD_RESET | INVITE
+  principalType String
+  principalId   String    @db.Uuid
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([principalId, purpose])
+}
+
+model Branch {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.Uuid
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  name              String
+  code              String    // short code used in invoice numbers
+  address           String?
+  stateCode         String?
+  phone             String?
+  email             String?
+  upiId             String?
+  invoicePrefix     String    @default("INV")
+  nextInvoiceNumber Int       @default(1)
+  nextCreditNumber  Int       @default(1)
+  businessHours     Json?     // { mon: [["10:00","20:00"]], ... }
+  receiptFooter     String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  invoices     Invoice[]
+  appointments Appointment[]
+  stockLevels  StockLevel[]
+  resources    Resource[]
+  cashShifts   CashShift[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Resource {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  branchId  String   @db.Uuid
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  name      String   // "Chair 1", "Spa Room 2"
+  kind      String   @default("CHAIR")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  appointments Appointment[]
+
+  @@unique([branchId, name])
+  @@index([tenantId])
+}
+
+// ───────────────────────────── Catalogue & inventory ─────────────────────────────
+
+enum ItemType {
+  SERVICE
+  PRODUCT
+}
+
+model Category {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  name      String
+  sortOrder Int           @default(0)
+  items     CatalogItem[]
+
+  @@unique([tenantId, name])
+}
+
+model CatalogItem {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  categoryId         String    @db.Uuid
+  category           Category  @relation(fields: [categoryId], references: [id])
+  type               ItemType
+  name               String
+  description        String?
+  price              Decimal   @db.Decimal(14, 2)
+  cost               Decimal?  @db.Decimal(14, 2)
+  taxRate            Decimal   @default(18) @db.Decimal(6, 3)
+  sacHsn             String?   // SAC for services (e.g. 999721), HSN for goods
+  durationMin        Int?
+  sku                String?
+  barcode            String?
+  icon               String?
+  minStock           Int       @default(0)
+  commissionEligible Boolean   @default(true)
+  allowPriceOverride Boolean   @default(true)
+  isActive           Boolean   @default(true)
+  archivedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  stockLevels StockLevel[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, barcode])
+  @@index([tenantId, type, isActive])
+}
+
+model StockLevel {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @db.Uuid
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  branchId  String      @db.Uuid
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  itemId    String      @db.Uuid
+  item      CatalogItem @relation(fields: [itemId], references: [id])
+  quantity  Int         @default(0)
+  updatedAt DateTime    @updatedAt
+
+  @@unique([branchId, itemId])
+  @@index([tenantId])
+}
+
+enum StockMovementType {
+  OPENING
+  RECEIPT
+  SALE
+  REFUND_RETURN
+  ADJUSTMENT
+  DAMAGE
+  BACKBAR_USE
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+model StockMovement {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @db.Uuid
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  branchId    String            @db.Uuid
+  itemId      String            @db.Uuid
+  type        StockMovementType
+  quantity    Int               // signed: + in, − out
+  balanceAfter Int
+  unitCost    Decimal?          @db.Decimal(14, 2)
+  reference   String?           // invoice number, PO number, batch note
+  invoiceId   String?           @db.Uuid
+  supplierId  String?           @db.Uuid
+  batchNo     String?
+  expiryDate  DateTime?
+  note        String?
+  actorUserId String?           @db.Uuid
+  createdAt   DateTime          @default(now())
+
+  @@index([tenantId, itemId, createdAt])
+  @@index([tenantId, branchId, createdAt])
+}
+
+model Supplier {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  phone     String?
+  email     String?
+  gstin     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ───────────────────────────── Customers, memberships, wallet ─────────────────────────────
+
+model Customer {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  name             String
+  phone            String
+  email            String?
+  birthday         DateTime? @db.Date
+  gender           String?
+  notes            String?   // general preferences
+  colorFormula     String?   // sensitive — permission customers.sensitive
+  allergies        String?   // sensitive
+  marketingConsent Boolean   @default(false)
+  whatsappConsent  Boolean   @default(false)
+  walletBalance    Decimal   @default(0) @db.Decimal(14, 2) // cached; ledger is authoritative, updated in same tx
+  visitCount       Int       @default(0)
+  lifetimeSpend    Decimal   @default(0) @db.Decimal(14, 2)
+  lastVisitAt      DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  memberships   CustomerMembership[]
+  walletEntries WalletEntry[]
+  appointments  Appointment[]
+  invoices      Invoice[]
+  patchTests    PatchTest[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, name])
+}
+
+model PatchTest {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  customerId  String   @db.Uuid
+  customer    Customer @relation(fields: [customerId], references: [id])
+  product     String
+  result      String   // PASSED | FAILED | REACTION
+  notes       String?
+  testedAt    DateTime
+  actorUserId String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, customerId])
+}
+
+model MembershipPlan {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  name               String
+  description        String?
+  price              Decimal   @db.Decimal(14, 2)
+  taxRate            Decimal   @default(18) @db.Decimal(6, 3)
+  discountPercent    Decimal   @db.Decimal(6, 3)
+  appliesToServices  Boolean   @default(true)
+  appliesToProducts  Boolean   @default(false)
+  bonusWalletCredit  Decimal   @default(0) @db.Decimal(14, 2)
+  validityMonths     Int
+  perks              String?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  memberships CustomerMembership[]
+
+  @@unique([tenantId, name])
+}
+
+model CustomerMembership {
+  id           String         @id @default(uuid()) @db.Uuid
+  tenantId     String         @db.Uuid
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
+  customerId   String         @db.Uuid
+  customer     Customer       @relation(fields: [customerId], references: [id])
+  planId       String         @db.Uuid
+  plan         MembershipPlan @relation(fields: [planId], references: [id])
+  startsAt     DateTime
+  endsAt       DateTime
+  status       String         @default("ACTIVE") // ACTIVE, CANCELLED, EXPIRED
+  invoiceId    String?        @db.Uuid
+  createdAt    DateTime       @default(now())
+
+  @@index([tenantId, customerId, endsAt])
+}
+
+enum WalletEntryType {
+  TOPUP
+  BONUS
+  REDEMPTION
+  REFUND
+  ADJUSTMENT
+  REVERSAL
+}
+
+model WalletEntry {
+  id           String          @id @default(uuid()) @db.Uuid
+  tenantId     String          @db.Uuid
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  customerId   String          @db.Uuid
+  customer     Customer        @relation(fields: [customerId], references: [id])
+  type         WalletEntryType
+  amount       Decimal         @db.Decimal(14, 2) // signed
+  balanceAfter Decimal         @db.Decimal(14, 2)
+  invoiceId    String?         @db.Uuid
+  reason       String?
+  actorUserId  String?         @db.Uuid
+  createdAt    DateTime        @default(now())
+
+  @@index([tenantId, customerId, createdAt])
+}
+
+model Coupon {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  code        String
+  description String?
+  kind        String    // PERCENT | FLAT
+  value       Decimal   @db.Decimal(14, 2)
+  minSubtotal Decimal   @default(0) @db.Decimal(14, 2)
+  firstVisitOnly Boolean @default(false)
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  validFrom   DateTime?
+  validTo     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@unique([tenantId, code])
+}
+
+// ───────────────────────────── Staff & payroll ─────────────────────────────
+
+model StaffProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.Uuid
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  userId            String?   @unique @db.Uuid
+  user              User?     @relation(fields: [userId], references: [id])
+  branchId          String?   @db.Uuid
+  name              String
+  designation       String
+  phone             String
+  whatsapp          String?
+  address           String?   // sensitive — staff.kyc
+  panMasked         String?   // e.g. "ABCDE••••K" — full PAN only in KYC file storage
+  aadhaarLast4      String?   // never full Aadhaar (UIDAI masking guidance)
+  bankName          String?
+  bankAccountLast4  String?
+  ifsc              String?
+  joinedOn          DateTime? @db.Date
+  baseSalary        Decimal   @default(0) @db.Decimal(14, 2)
+  salaryFrequency   String    @default("MONTHLY") // MONTHLY | WEEKLY | DAILY
+  serviceCommission Decimal   @default(0) @db.Decimal(6, 3)
+  productCommission Decimal   @default(0) @db.Decimal(6, 3)
+  isBookable        Boolean   @default(true)
+  status            String    @default("ACTIVE") // ACTIVE | INACTIVE | EXITED
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  appointments      Appointment[]
+  commissionEntries CommissionEntry[]
+
+  @@index([tenantId, status])
+}
+
+model CommissionEntry {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @db.Uuid
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  staffId       String       @db.Uuid
+  staff         StaffProfile @relation(fields: [staffId], references: [id])
+  invoiceId     String       @db.Uuid
+  invoiceLineId String?      @db.Uuid
+  kind          String       // SERVICE | PRODUCT | TIP | REVERSAL
+  baseAmount    Decimal      @db.Decimal(14, 2)
+  ratePercent   Decimal      @db.Decimal(6, 3) // snapshot at sale time
+  amount        Decimal      @db.Decimal(14, 2) // signed
+  payrollRunId  String?      @db.Uuid
+  createdAt     DateTime     @default(now())
+
+  @@index([tenantId, staffId, createdAt])
+}
+
+model PayrollRun {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  periodStart DateTime  @db.Date
+  periodEnd   DateTime  @db.Date
+  status      String    @default("DRAFT") // DRAFT | APPROVED | PAID
+  approvedBy  String?   @db.Uuid
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  lines       PayrollLine[]
+
+  @@unique([tenantId, periodStart, periodEnd])
+}
+
+model PayrollLine {
+  id           String     @id @default(uuid()) @db.Uuid
+  payrollRunId String     @db.Uuid
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id])
+  staffId      String     @db.Uuid
+  basePay      Decimal    @db.Decimal(14, 2)
+  commission   Decimal    @db.Decimal(14, 2)
+  tips         Decimal    @db.Decimal(14, 2)
+  adjustments  Decimal    @default(0) @db.Decimal(14, 2)
+  advances     Decimal    @default(0) @db.Decimal(14, 2)
+  netPay       Decimal    @db.Decimal(14, 2)
+  paidAt       DateTime?
+  paymentRef   String?
+
+  @@unique([payrollRunId, staffId])
+}
+
+// ───────────────────────────── Appointments ─────────────────────────────
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  WAITING
+  CHECKED_IN
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @db.Uuid
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  branchId    String            @db.Uuid
+  branch      Branch            @relation(fields: [branchId], references: [id])
+  customerId  String            @db.Uuid
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  staffId     String            @db.Uuid
+  staff       StaffProfile      @relation(fields: [staffId], references: [id])
+  resourceId  String?           @db.Uuid
+  resource    Resource?         @relation(fields: [resourceId], references: [id])
+  serviceId   String            @db.Uuid
+  serviceName String            // snapshot
+  startsAt    DateTime
+  endsAt      DateTime
+  isWalkIn    Boolean           @default(false)
+  status      AppointmentStatus @default(BOOKED)
+  notes       String?
+  invoiceId   String?           @db.Uuid
+  cancelReason String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // A Postgres EXCLUDE constraint (see migration) prevents overlapping active
+  // appointments for the same staff member and the same resource.
+  @@index([tenantId, branchId, startsAt])
+  @@index([tenantId, staffId, startsAt])
+}
+
+// ───────────────────────────── POS & invoices ─────────────────────────────
+
+enum InvoiceStatus {
+  PAID
+  PARTIALLY_PAID
+  UNPAID
+  VOID
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum LineType {
+  SERVICE
+  PRODUCT
+  MEMBERSHIP
+  CUSTOM
+}
+
+model Invoice {
+  id               String        @id @default(uuid()) @db.Uuid
+  tenantId         String        @db.Uuid
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  branchId         String        @db.Uuid
+  branch           Branch        @relation(fields: [branchId], references: [id])
+  number           String
+  kind             String        @default("INVOICE") // INVOICE | CREDIT_NOTE
+  originalInvoiceId String?      @db.Uuid
+  idempotencyKey   String?
+  customerId       String?       @db.Uuid
+  customer         Customer?     @relation(fields: [customerId], references: [id])
+  appointmentId    String?       @db.Uuid
+  cashierUserId    String?       @db.Uuid
+  status           InvoiceStatus
+  // Immutable snapshots
+  customerSnapshot Json?
+  sellerSnapshot   Json          // salon name, branch, address, GSTIN, phone, UPI at time of sale
+  placeOfSupply    String?
+  pricesIncludeTax Boolean
+  subtotal         Decimal       @db.Decimal(14, 2) // Σ gross line amounts (ex-tax)
+  discountTotal    Decimal       @db.Decimal(14, 2)
+  taxableTotal     Decimal       @db.Decimal(14, 2)
+  cgstTotal        Decimal       @db.Decimal(14, 2)
+  sgstTotal        Decimal       @db.Decimal(14, 2)
+  igstTotal        Decimal       @db.Decimal(14, 2)
+  taxTotal         Decimal       @db.Decimal(14, 2)
+  tip              Decimal       @db.Decimal(14, 2)
+  roundOff         Decimal       @db.Decimal(14, 2)
+  grandTotal       Decimal       @db.Decimal(14, 2)
+  amountPaid       Decimal       @db.Decimal(14, 2)
+  amountDue        Decimal       @db.Decimal(14, 2)
+  discountSnapshot Json?         // which discounts applied and why
+  voidReason       String?
+  voidedAt         DateTime?
+  issuedAt         DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+
+  lines    InvoiceLine[]
+  payments InvoicePayment[]
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, branchId, issuedAt])
+  @@index([tenantId, customerId])
+  @@index([tenantId, status])
+}
+
+model InvoiceLine {
+  id               String   @id @default(uuid()) @db.Uuid
+  invoiceId        String   @db.Uuid
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id])
+  lineNo           Int
+  type             LineType
+  itemId           String?  @db.Uuid // catalogue item or membership plan; nullable for custom
+  description      String
+  sacHsn           String?
+  staffId          String?  @db.Uuid
+  staffName        String?
+  quantity         Int
+  unitPrice        Decimal  @db.Decimal(14, 2) // as charged (ex-tax)
+  listPrice        Decimal  @db.Decimal(14, 2) // catalogue price at sale time
+  grossAmount      Decimal  @db.Decimal(14, 2)
+  discountAmount   Decimal  @db.Decimal(14, 2)
+  taxableAmount    Decimal  @db.Decimal(14, 2)
+  taxRate          Decimal  @db.Decimal(6, 3)
+  cgstAmount       Decimal  @db.Decimal(14, 2)
+  sgstAmount       Decimal  @db.Decimal(14, 2)
+  igstAmount       Decimal  @db.Decimal(14, 2)
+  totalAmount      Decimal  @db.Decimal(14, 2)
+  refundedQuantity Int      @default(0)
+
+  @@unique([invoiceId, lineNo])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  WALLET
+}
+
+model InvoicePayment {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  invoiceId String        @db.Uuid
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id])
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(14, 2) // signed: negative for refunds
+  reference String?       // UPI ref, card last4/auth code
+  shiftId   String?       @db.Uuid
+  createdAt DateTime      @default(now())
+
+  @@index([tenantId, createdAt, method])
+}
+
+model ParkedCart {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  branchId  String   @db.Uuid
+  label     String
+  payload   Json
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, branchId])
+}
+
+model CashShift {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  branchId       String    @db.Uuid
+  branch         Branch    @relation(fields: [branchId], references: [id])
+  openedBy       String    @db.Uuid
+  openingFloat   Decimal   @db.Decimal(14, 2)
+  openedAt       DateTime  @default(now())
+  closedBy       String?   @db.Uuid
+  closedAt       DateTime?
+  countedCash    Decimal?  @db.Decimal(14, 2)
+  expectedCash   Decimal?  @db.Decimal(14, 2)
+  variance       Decimal?  @db.Decimal(14, 2)
+  notes          String?
+
+  @@index([tenantId, branchId, openedAt])
+}
+
+// ───────────────────────────── Expenses ─────────────────────────────
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  SUPPLIES
+  HOUSEKEEPING
+  MARKETING
+  PANTRY
+  MAINTENANCE
+  MISCELLANEOUS
+}
+
+model Expense {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @db.Uuid
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  branchId      String?         @db.Uuid
+  title         String
+  category      ExpenseCategory
+  amount        Decimal         @db.Decimal(14, 2)
+  spentOn       DateTime        @db.Date
+  paymentMode   String          // BANK_TRANSFER | UPI | CASH | CREDIT_CARD
+  vendor        String?
+  reference     String?
+  notes         String?
+  attachmentId  String?         @db.Uuid
+  createdBy     String?         @db.Uuid
+  voidedAt      DateTime?
+  voidReason    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([tenantId, spentOn])
+}
+
+// ───────────────────────────── Cross-cutting ─────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String?  @db.Uuid
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  actor      String   // "user:<id>" | "platform:<id>" | "system" | "webhook"
+  action     String   // e.g. invoice.create, invoice.void, price.override, wallet.adjust
+  entityType String?
+  entityId   String?
+  detail     Json?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String?   @db.Uuid
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
+  channel     String    // EMAIL | SMS | WHATSAPP | IN_APP
+  template    String
+  recipient   String
+  dedupeKey   String    @unique // prevents duplicate sends across restarts
+  payload     Json?
+  status      String    @default("PENDING") // PENDING, SENT, FAILED, SKIPPED
+  attempts    Int       @default(0)
+  lastError   String?
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+model StoredFile {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  purpose     String   // LOGO | EXPENSE_RECEIPT | STAFF_KYC
+  storageKey  String   @unique // path in private bucket — never public
+  mimeType    String
+  sizeBytes   Int
+  sha256      String
+  uploadedBy  String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, purpose])
+}

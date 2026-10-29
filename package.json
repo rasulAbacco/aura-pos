@@ -1,0 +1,24 @@
+{
+  "name": "aura-pos",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "postinstall": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "setup": "npm --prefix server run setup && npm --prefix client run setup",
+    "build": "npm --prefix client run build:single",
+    "start": "npm run build && npm --prefix server run start:prod",
+    "test": "npm --prefix server test",
+    "db:migrate": "npm --prefix server run db:migrate",
+    "db:seed": "npm --prefix server run db:seed"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.5"
+  },
+  "description": "Optional helper: run client and server together from one terminal. Each folder also works on its own."
+}

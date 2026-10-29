@@ -1,0 +1,12 @@
+export { TabletFrame, LaptopFrame, PhoneFrame } from './Frames.jsx';
+export { DashboardMock } from './DashboardMock.jsx';
+export { OverviewMock } from './OverviewMock.jsx';
+export { NewBillMock } from './NewBillMock.jsx';
+export { FeatureBillMock } from './FeatureBillMock.jsx';
+export { AppointmentsWeekMock } from './AppointmentsWeekMock.jsx';
+export { ClientProfileMock } from './ClientProfileMock.jsx';
+export { TiersMock } from './TiersMock.jsx';
+export { ProductsTableMock } from './ProductsTableMock.jsx';
+export { StaffTableMock } from './StaffTableMock.jsx';
+export { PnlMock } from './PnlMock.jsx';
+export { AppointmentFormMock } from './AppointmentFormMock.jsx';

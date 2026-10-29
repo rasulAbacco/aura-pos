@@ -1,0 +1,3 @@
+export const INTERVAL_LABEL = { MONTHLY: 'month', QUARTERLY: 'quarter', ANNUAL: 'year' };
+export const FEATURE_LABEL = { pos: 'Billing counter & receipts', appointments: 'Appointments & queue', inventory: 'Inventory & purchasing', payroll: 'Payroll & commissions', reports: 'Profit & loss and exports', 'reports.advanced': 'Advanced analytics', multibranch: 'Multiple branches & stock transfers', online_booking: 'Online booking page', notifications: 'Email reminders' };
+export const STATE_BADGE = { ACTIVE: ['green', 'Active'], TRIAL: ['blue', 'Trial'], GRACE: ['amber', 'Payment overdue'], EXPIRED: ['rose', 'Expired — read-only'], SUSPENDED: ['rose', 'Suspended'], NONE: ['stone', 'No plan'] };
