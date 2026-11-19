@@ -18,7 +18,8 @@
     "jobs": "node src/jobs/index.js",
     "setup": "node scripts/setup.js",
     "admin:set": "node scripts/platform-admin.js",
-    "check:phone": "node scripts/check-phone-login.js"
+    "check:phone": "node scripts/check-phone-login.js",
+    "check:sms": "node scripts/check-sms.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
