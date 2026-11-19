@@ -124,6 +124,13 @@ export async function reschedule(ctx, id, body) {
 export async function cartForAppointment(ctx, id) {
   const a = await getAppointment(ctx, id);
   if (['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(a.status)) throw conflict('INVALID_TRANSITION', `Appointment is ${a.status}`);
-  const svc = await prisma.catalogItem.findFirst({ where: { id: a.serviceId, tenantId: ctx.tenantId } });
-  return { appointmentId: a.id, branchId: a.branchId, customerId: a.customerId, lines: [{ type: 'SERVICE', itemId: a.serviceId, quantity: 1, staffId: a.staffId, description: svc?.name ?? a.serviceName, unitPrice: svc?.price }] };
+  // Services booked together in the customer app come onto one bill.
+  const group = a.bookingGroup
+    ? await prisma.appointment.findMany({ where: { tenantId: ctx.tenantId, bookingGroup: a.bookingGroup, invoiceId: null, status: { in: ACTIVE } }, orderBy: { startsAt: 'asc' } })
+    : [a];
+  const svcs = await prisma.catalogItem.findMany({ where: { tenantId: ctx.tenantId, id: { in: group.map((x) => x.serviceId) } } });
+  return {
+    appointmentId: a.id, branchId: a.branchId, customerId: a.customerId,
+    lines: group.map((x) => { const svc = svcs.find((s) => s.id === x.serviceId); return { type: 'SERVICE', itemId: x.serviceId, quantity: 1, staffId: x.staffId, description: svc?.name ?? x.serviceName, unitPrice: svc?.price }; }),
+  };
 }

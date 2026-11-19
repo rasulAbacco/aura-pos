@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Figtree Variable", "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", "Fraunces", Georgia, serif;
+  --color-cream: #fbf5f2;
+  /* page background */
+  --color-petal: #f7e9e6;
+  /* soft pink panels */
+  --color-blush: #efdcd8;
+  /* borders, chips */
+  --color-mauve: #7b2843;
+  /* wine: buttons, accents */
+  --color-mauve-deep: #5a1a30;
+  /* pressed / dark panels */
+  --color-ink: #1f1a1d;
+  /* text */
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+/* Safety net: nothing may make the page wider than the screen (phones would zoom out). */
+html,
+body {
+  overflow-x: clip;
+}
+
+body {
+  @apply bg-cream text-ink font-sans antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* iPhone notch / home indicator and Android cut-outs (viewport-fit=cover in index.html). */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+}
+
+.bottom-safe {
+  bottom: env(safe-area-inset-bottom);
+}
+
+/* Space for the tab bar (and the sticky action bar above it). */
+.with-tabbar {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+}
+
+.with-tabbar-action {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10rem);
+}
+
+.is-native body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.is-native button,
+.is-native a {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* iOS zooms into smaller inputs */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-mauve);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-rise {
+  animation: rise .22s ease-out both;
+}
+
+/* Wide screens: no bottom tab bar (the top navigation is used), so less space at the bottom. */
+@media (min-width: 768px) {
+
+  .with-tabbar,
+  .with-tabbar-action {
+    padding-bottom: 4rem;
+  }
+}
+
+.snap-x-mandatory {
+  scroll-snap-type: x mandatory;
+}
+
+.snap-center {
+  scroll-snap-align: center;
+}

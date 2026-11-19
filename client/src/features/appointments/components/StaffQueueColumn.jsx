@@ -16,7 +16,7 @@ export function StaffQueueColumn({ staff, items, canManage, canBill, onMove, onB
                 <div>
                   <p className="font-semibold">{a.customer.name}</p>
                   <p className="text-stone-600">{a.serviceName}</p>
-                  <p className="num text-xs text-stone-500">{time(a.startsAt)}–{time(a.endsAt)}{a.resource ? ` · ${a.resource.name}` : ''}{a.isWalkIn ? ' · walk-in' : ''}</p>
+                  <p className="num text-xs text-stone-500">{time(a.startsAt)}–{time(a.endsAt)}{a.resource ? ` · ${a.resource.name}` : ''}{a.isWalkIn ? ' · walk-in' : ''}{a.source === 'APP' ? ' · booked in app' : ''}{a.source === 'APP' && a.status === 'BOOKED' ? ' (to confirm)' : ''}</p>
                 </div>
                 <Badge tone={APPOINTMENT_STATUS_TONE[a.status]}>{APPOINTMENT_STATUS_LABEL[a.status]}</Badge>
               </div>

@@ -15,6 +15,9 @@ export function CartPanel({ pos, clients, customer, staff, can, writable, onNewC
       <ClientPicker clients={clients} customerId={cart.customerId} customer={customer} onChange={(id) => setField({ customerId: id })} onNewClient={can('customers.manage') ? onNewClient : null} />
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+        {cart.shopOrderId && (
+          <p className="rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">App order <b>{cart.orderNumber}</b> — settling this bill marks it collected. Prices are today's price list.</p>
+        )}
         {!cart.lines.length && <p className="py-10 text-center text-sm text-stone-500">Tap a service or product to start the bill.</p>}
         {cart.lines.map((l, i) => (
           <CartLine key={l.key} line={l} staff={staff} quoteLine={quote?.lines?.[i]} canEditPrice={can('pos.price_override')} onChange={(patch) => updateLine(l.key, patch)} />

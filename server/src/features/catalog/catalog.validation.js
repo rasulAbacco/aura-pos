@@ -21,6 +21,14 @@ export const itemSchema = z.object({
   commissionEligible: z.boolean().default(true),
   allowPriceOverride: z.boolean().default(true),
   isActive: z.boolean().default(true),
+  // Shop details for the customer app
+  brand: z.string().trim().max(60).optional().nullable(),
+  size: z.string().trim().max(40).optional().nullable(),
+  mrp: money.optional().nullable(),
+  highlights: z.string().trim().max(1000).optional().nullable(),
+  howToUse: z.string().trim().max(1000).optional().nullable(),
+  ingredients: z.string().trim().max(2000).optional().nullable(),
+  showInApp: z.boolean().default(true),
   openingStock: z.coerce.number().int().min(0).max(100000).optional(), // products, current branch
 });
 

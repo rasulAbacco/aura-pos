@@ -7,6 +7,7 @@ import { StatCard } from './components/StatCard.jsx';
 import { TodayHero } from './components/TodayHero.jsx';
 import { RevenueTrendChart } from './components/RevenueTrendChart.jsx';
 import { TodayQueue } from './components/TodayQueue.jsx';
+import { AppRequestsCard } from './components/AppRequestsCard.jsx';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'; };
 
@@ -32,6 +33,7 @@ export default function DashboardPage() {
             {s && <RevenueTrendChart trend={s.trend} />}
             <TodayQueue byStatus={d.data.appointmentsByStatus ?? {}} upcoming={d.data.upcoming} canOpen={can('appointments.view')} />
           </div>
+          <AppRequestsCard enabled={can('online.respond') || can('appointments.view') || can('pos.bill')} />
           <div className="grid gap-3 sm:grid-cols-3">
             <StatCard label="Products at or below minimum stock" value={d.data.lowStockCount} warn={d.data.lowStockCount > 0} link={d.data.lowStockCount > 0 ? '/app/catalog' : undefined} />
             <StatCard label="New clients today" value={d.data.newCustomersToday} />

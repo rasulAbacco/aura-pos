@@ -1,0 +1,29 @@
+{
+  "appId": "com.abaccotech.saloraglam.customer",
+  "appName": "Salora Glam",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#fbf5f2",
+      "showSpinner": false,
+      "launchShowDuration": 0
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "LIGHT",
+      "backgroundColor": "#fbf5f2"
+    }
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#fbf5f2",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

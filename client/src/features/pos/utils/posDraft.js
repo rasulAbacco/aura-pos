@@ -4,7 +4,7 @@
  * The server re-validates and re-prices everything at checkout.
  */
 export const DRAFT_KEY = 'aura.posDraft';
-export const emptyCart = () => ({ lines: [], customerId: '', offer: 'NONE', couponCode: '', tip: '', appointmentId: null });
+export const emptyCart = () => ({ lines: [], customerId: '', offer: 'NONE', couponCode: '', tip: '', appointmentId: null, shopOrderId: null, orderNumber: null });
 
 export function loadDraft() {
   try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) ?? emptyCart(); } catch { return emptyCart(); }

@@ -1,10 +1,15 @@
-import { FiGrid, FiShoppingBag, FiCalendar, FiUsers, FiAward, FiList, FiPackage, FiUserCheck, FiDollarSign, FiPieChart, FiBarChart2, FiFileText, FiSettings, FiCreditCard } from 'react-icons/fi';
+import { FiGrid, FiShoppingBag, FiCalendar, FiUsers, FiAward, FiList, FiPackage, FiUserCheck, FiDollarSign, FiPieChart, FiBarChart2, FiFileText, FiSettings, FiCreditCard, FiSmartphone } from 'react-icons/fi';
 
-/** Sidebar entries, one per feature page. `perm` hides an entry when the user lacks it (the server still enforces access). */
+/**
+ * Sidebar entries, one per feature page. `perm` hides an entry when the user lacks it (the server still enforces access);
+ * `anyPerm` shows it when the user has at least one of the listed permissions. `badge: 'online'` shows the
+ * number of customer-app requests waiting (lib/onlineSummary.js).
+ */
 export const NAV_ITEMS = [
   { to: '/app', label: 'Dashboard', icon: FiGrid, end: true },
   { to: '/app/pos', label: 'Billing counter', icon: FiShoppingBag, perm: 'pos.bill' },
   { to: '/app/appointments', label: 'Queue & chairs', icon: FiCalendar, perm: 'appointments.view' },
+  { to: '/app/online', label: 'App requests', icon: FiSmartphone, anyPerm: ['online.respond', 'appointments.view', 'pos.bill'], badge: 'online' },
   { to: '/app/clients', label: 'Clients', icon: FiUsers, perm: 'customers.view' },
   { to: '/app/memberships', label: 'Memberships', icon: FiAward },
   { to: '/app/catalog', label: 'Price list', icon: FiList },

@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   'wallet.adjust',       // manual wallet credit/debit with reason
   'appointments.view',
   'appointments.manage',
+  'online.respond',      // answer customer-app requests: confirm/decline bookings, confirm/ready/cancel orders
   'catalog.manage',
   'inventory.view',
   'inventory.manage',
@@ -41,10 +42,10 @@ const ALL = new Set(PERMISSIONS);
 export const ROLE_DEFAULTS = {
   OWNER: [...ALL],
   MANAGER: PERMISSIONS.filter((p) => !['billing.manage', 'users.manage', 'staff.kyc', 'settings.manage'].includes(p)),
-  RECEPTIONIST: ['pos.bill', 'pos.discount', 'invoices.view', 'customers.view', 'customers.manage', 'appointments.view', 'appointments.manage', 'inventory.view', 'staff.view'],
-  STYLIST: ['appointments.view', 'customers.view', 'customers.sensitive', 'staff.view'],
-  INVENTORY_MANAGER: ['inventory.view', 'inventory.manage', 'catalog.manage', 'reports.view'],
-  ACCOUNTANT: ['invoices.view', 'expenses.view', 'expenses.manage', 'reports.view', 'reports.export', 'payroll.manage', 'staff.view'],
+  RECEPTIONIST: ['online.respond', 'pos.bill', 'pos.discount', 'invoices.view', 'customers.view', 'customers.manage', 'appointments.view', 'appointments.manage', 'inventory.view', 'staff.view'],
+  STYLIST: ['online.respond', 'appointments.view', 'customers.view', 'customers.sensitive', 'staff.view'],
+  INVENTORY_MANAGER: ['online.respond', 'inventory.view', 'inventory.manage', 'catalog.manage', 'reports.view'],
+  ACCOUNTANT: ['online.respond', 'invoices.view', 'expenses.view', 'expenses.manage', 'reports.view', 'reports.export', 'payroll.manage', 'staff.view'],
 };
 
 export function effectivePermissions(user) {

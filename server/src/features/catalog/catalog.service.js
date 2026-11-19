@@ -2,6 +2,7 @@
 import { prisma, isUniqueViolation } from '../../core/database/prisma.js';
 import { conflict, notFound, badRequest } from '../../core/errors/errors.js';
 import { audit } from '../../core/utils/audit.js';
+import { imagesFor } from '../media/media.service.js';
 
 const duplicate = (e) => { if (isUniqueViolation(e)) throw conflict('DUPLICATE', 'SKU or barcode already in use'); throw e; };
 
@@ -27,9 +28,10 @@ export async function listItems(ctx, branchId, { q, includeArchived, activeOnly,
     where, orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
     include: { category: { select: { id: true, name: true } }, stockLevels: { where: { branchId }, select: { quantity: true } } },
   });
+  const photos = await imagesFor('PRODUCT', items.filter((i) => i.type === 'PRODUCT').map((i) => i.id));
   return items.map(({ stockLevels, tenantId, ...i }) => {
     const stock = stockLevels[0]?.quantity ?? 0;
-    return { ...i, stock: i.type === 'PRODUCT' ? stock : null, lowStock: i.type === 'PRODUCT' && stock <= i.minStock };
+    return { ...i, stock: i.type === 'PRODUCT' ? stock : null, lowStock: i.type === 'PRODUCT' && stock <= i.minStock, images: photos.get(i.id) ?? [] };
   });
 }
 

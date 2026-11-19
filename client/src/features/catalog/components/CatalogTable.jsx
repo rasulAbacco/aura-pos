@@ -1,6 +1,7 @@
 import { money } from '../../../utils/format.js';
 import { Badge, Button } from '../../../components/ui';
 import { cx } from '../../../utils/cx.js';
+import { photoUrl } from '../../../components/media/PhotoManager.jsx';
 
 export function CatalogTable({ items, canBill, canEdit, canRestock, onBill, onEdit, onRestock, onArchive }) {
   return (
@@ -10,7 +11,19 @@ export function CatalogTable({ items, canBill, canEdit, canRestock, onBill, onEd
         <tbody className="divide-y divide-stone-100">
           {items.map((i) => (
             <tr key={i.id} className={cx(i.archivedAt && 'text-stone-400')}>
-              <td className="px-4 py-2.5 font-semibold">{i.name}{i.archivedAt && <span className="ml-2"><Badge>Archived</Badge></span>}</td>
+              <td className="px-4 py-2.5">
+                <span className="flex items-center gap-3">
+                  {i.type === 'PRODUCT' && (i.images?.[0]
+                    ? <img src={photoUrl(i.images[0].id)} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-md border border-stone-200 object-cover" />
+                    : <span aria-hidden className="h-10 w-10 shrink-0 rounded-md border border-dashed border-stone-300 bg-stone-50" />)}
+                  <span>
+                    <span className="font-semibold">{i.name}</span>
+                    {(i.brand || i.size) && <span className="block text-xs text-stone-500">{[i.brand, i.size].filter(Boolean).join(' · ')}</span>}
+                    {i.archivedAt && <span className="ml-2"><Badge>Archived</Badge></span>}
+                    {!i.archivedAt && i.showInApp === false && <span className="ml-2"><Badge>Hidden in app</Badge></span>}
+                  </span>
+                </span>
+              </td>
               <td className="px-4 text-stone-600">{i.category.name}</td>
               <td className="num px-4 text-right">{money(i.price)}</td>
               <td className="num px-4 text-right">{Number(i.taxRate)}%</td>

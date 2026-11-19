@@ -130,6 +130,10 @@ model Tenant {
   status           TenantStatus @default(ACTIVE)
   suspendedReason  String?
   suspendedAt      DateTime?
+  // Customer app (Salora Glam): shown in the app only when appListed and the subscription allows business.
+  category         String?      // SPA | MENS_SALON | SPA_SALON | UNISEX_SALON | WOMENS_PARLOUR
+  appListed        Boolean      @default(true)
+  about            String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -162,6 +166,7 @@ model Tenant {
   files               StoredFile[]
   supportNotes        TenantNote[]
   messages            TenantMessage[]
+  shopOrders          ShopOrder[]
 }
 
 enum SubscriptionStatus {
@@ -349,6 +354,12 @@ model Branch {
   nextCreditNumber  Int       @default(1)
   businessHours     Json?     // { mon: [["10:00","20:00"]], ... }
   receiptFooter     String?
+  city              String?   // shown and searchable in the customer app
+  latitude          Float?    // map position (set with "Use my current location" in Settings)
+  longitude         Float?
+  onlineBooking     Boolean   @default(true)  // customers can request appointments from the app
+  onlineOrders      Boolean   @default(true)  // customers can order products for pickup
+  nextOrderNumber   Int       @default(1)
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -358,6 +369,7 @@ model Branch {
   stockLevels  StockLevel[]
   resources    Resource[]
   cashShifts   CashShift[]
+  shopOrders   ShopOrder[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -420,6 +432,14 @@ model CatalogItem {
   minStock           Int       @default(0)
   commissionEligible Boolean   @default(true)
   allowPriceOverride Boolean   @default(true)
+  // Shop details shown in the customer app (products) — photos are MediaImage rows (owner PRODUCT)
+  brand              String?
+  size               String?   // e.g. "250 ml", "100 g"
+  mrp                Decimal?  @db.Decimal(14, 2) // printed MRP; shown struck through when above the price
+  highlights         String?   // one benefit per line
+  howToUse           String?
+  ingredients        String?
+  showInApp          Boolean   @default(true)
   isActive           Boolean   @default(true)
   archivedAt         DateTime?
   createdAt          DateTime  @default(now())
@@ -526,6 +546,7 @@ model Customer {
   appointments  Appointment[]
   invoices      Invoice[]
   patchTests    PatchTest[]
+  shopOrders    ShopOrder[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, name])
@@ -753,6 +774,8 @@ model Appointment {
   notes       String?
   invoiceId   String?           @db.Uuid
   cancelReason String?
+  source       String           @default("COUNTER") // COUNTER | APP (requested by a customer in the app)
+  bookingGroup String?          @db.Uuid            // services booked together in the app share this
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -760,6 +783,7 @@ model Appointment {
   // appointments for the same staff member and the same resource.
   @@index([tenantId, branchId, startsAt])
   @@index([tenantId, staffId, startsAt])
+  @@index([tenantId, source, status])
 }
 
 // ───────────────────────────── POS & invoices ─────────────────────────────
@@ -1014,4 +1038,93 @@ model StoredFile {
   createdAt   DateTime @default(now())
 
   @@index([tenantId, purpose])
+}
+
+// ───────────────────────── Customer app (Salora Glam) ─────────────────────────
+// One account per mobile number, across every salon. At each salon it is linked to that salon's own
+// Customer record by the same number (the last 10 digits), created on the first booking or order.
+model CustomerAccount {
+  id          String    @id @default(uuid()) @db.Uuid
+  phone       String    @unique // 10 digits, e.g. 9876543210
+  name        String?
+  email       String?
+  gender      String?
+  birthday    DateTime? @db.Date
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orders      ShopOrder[]
+}
+
+/** One-time sign-in codes sent by SMS. Only a hash of the code is stored. */
+model CustomerOtp {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+  @@index([phone, createdAt])
+}
+
+/** Products ordered in the app for pickup at a branch; paid and billed at the counter. */
+model ShopOrder {
+  id           String          @id @default(uuid()) @db.Uuid
+  tenantId     String          @db.Uuid
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  branchId     String          @db.Uuid
+  branch       Branch          @relation(fields: [branchId], references: [id])
+  customerId   String          @db.Uuid
+  customer     Customer        @relation(fields: [customerId], references: [id])
+  accountId    String          @db.Uuid
+  account      CustomerAccount @relation(fields: [accountId], references: [id])
+  number       String          // e.g. IND-O12
+  status       String          @default("PLACED") // PLACED | CONFIRMED | READY | COLLECTED | CANCELLED
+  itemsTotal   Decimal         @db.Decimal(14, 2) // estimate at list prices; the bill at the counter is authoritative
+  notes        String?
+  cancelReason String?
+  cancelledBy  String?         // CUSTOMER | SALON
+  invoiceId    String?         @db.Uuid
+  idempotencyKey String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  lines        ShopOrderLine[]
+  @@unique([tenantId, number])
+  @@unique([accountId, idempotencyKey])
+  @@index([tenantId, branchId, status])
+  @@index([accountId, createdAt])
+}
+
+model ShopOrderLine {
+  id        String    @id @default(uuid()) @db.Uuid
+  orderId   String    @db.Uuid
+  order     ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String    @db.Uuid
+  name      String    // snapshot
+  unitPrice Decimal   @db.Decimal(14, 2)
+  quantity  Int
+}
+
+/**
+ * Photos: product photos (owner PRODUCT, up to 3) and salon photos (owner SALON, up to 6).
+ * Stored in the database so they survive redeploys on hosts with temporary disks (e.g. Render).
+ * Phones/browsers shrink photos before upload (max ~1600 px, < 800 KB). Served publicly by id.
+ */
+model MediaImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  ownerType String   // PRODUCT | SALON
+  ownerId   String   @db.Uuid // CatalogItem id or Tenant id
+  position  Int      @default(0) // 0 = main photo
+  mimeType  String
+  sizeBytes Int
+  width     Int?
+  height    Int?
+  sha256    String
+  data      Bytes
+  createdAt DateTime @default(now())
+  @@index([tenantId, ownerType, ownerId, position])
 }

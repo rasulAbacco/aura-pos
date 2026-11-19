@@ -49,6 +49,12 @@ import { router as expenseRoutes } from "./features/expenses/expenses.routes.js"
 import { router as reportRoutes } from "./features/reports/reports.routes.js";
 import { router as settingsRoutes } from "./features/settings/settings.routes.js";
 import { router as userRoutes } from "./features/users/users.routes.js";
+import { router as customerAppRoutes } from "./features/customer-app/customer.routes.js";
+import { router as onlineRoutes } from "./features/online/online.routes.js";
+import {
+  salonMediaRoutes,
+  publicMediaRoutes,
+} from "./features/media/media.routes.js";
 
 const CLIENT_DIST = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -65,7 +71,11 @@ export function createApp() {
   app.use(helmet({ contentSecurityPolicy: false })); // CSP for the SPA is set below when serving it
   app.use(
     cors({
-      origin: [env.CLIENT_ORIGIN, ...env.EXTRA_CORS_ORIGINS],
+      origin: [
+        env.CLIENT_ORIGIN,
+        ...(env.CUSTOMER_APP_ORIGIN ? [env.CUSTOMER_APP_ORIGIN] : []),
+        ...env.EXTRA_CORS_ORIGINS,
+      ],
       credentials: true,
       allowedHeaders: [
         "Content-Type",
@@ -121,6 +131,10 @@ export function createApp() {
   api.use("/auth", authRoutes);
   api.use("/public", publicRoutes);
   api.use("/platform", platformRoutes);
+  // Customer app (Salora Glam): its own sign-in (mobile number + SMS code) and its own token type
+  api.use("/customer", customerAppRoutes);
+  // Product and salon photos (public, cached)
+  api.use("/media", publicMediaRoutes);
   // Logged in, but reachable even when the subscription has expired (so the salon can renew)
   api.use("/billing", authenticate, subscriptionRoutes);
   api.use("/inbox", authenticate, inboxRoutes);
@@ -140,6 +154,8 @@ export function createApp() {
   salon.use("/reports", reportRoutes);
   salon.use("/settings", settingsRoutes);
   salon.use("/users", userRoutes);
+  salon.use("/online", onlineRoutes); // booking requests and product orders from the customer app
+  salon.use(salonMediaRoutes); // product photos (/catalog/items/:id/images) and salon photos (/settings/photos)
   api.use(salon);
   app.use("/api/v1", api);
   app.use("/api", notFoundHandler);
@@ -159,7 +175,7 @@ export function createApp() {
     app.get(/^\/(?!api\/).*/, (_req, res) => {
       res.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' https://checkout.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://www.google.com https://maps.google.com; connect-src 'self' https://lumberjack.razorpay.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com",
+        "default-src 'self'; script-src 'self' https://checkout.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://www.google.com https://maps.google.com; connect-src 'self' https://lumberjack.razorpay.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com",
       );
       res.sendFile(path.join(CLIENT_DIST, "index.html"));
     });
